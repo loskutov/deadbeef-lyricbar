@@ -1,3 +1,4 @@
+#include <gtkmm/main.h>
 #include <gtkmm/widget.h>
 #include <gtkmm/textbuffer.h>
 #include <gtkmm/textview.h>
@@ -6,8 +7,6 @@
 #include <iostream> // debugging only
 #include <memory>
 #include <functional>
-#include <algorithm>
-#include <curl/curl.h> // curl_easy_escape
 #include "utils.h"
 
 extern DB_functions_t *deadbeef;
@@ -16,106 +15,92 @@ using namespace std;
 using namespace Gtk;
 using namespace Glib;
 
-static TextView lyricView;
-static ScrolledWindow lyricbar;
-static RefPtr<TextBuffer> bufferPtr;
+static unique_ptr<TextView> lyricView;
+static unique_ptr<ScrolledWindow> lyricbar;
+static RefPtr<TextBuffer> refBuffer;
+static RefPtr<TextTag> tagItalic, tagBold, tagLarge;
+static vector<RefPtr<TextTag>> tagsTitle;
+
 
 void set_lyrics(DB_playItem_t * track, ustring && lyrics) {
-    signal_idle().connect([track, ptr = make_shared<ustring>(lyrics)]() {
+    signal_idle().connect([track, lyrics]() {
         if (!now_playing(track)) {
             return false;
         }
-        bufferPtr->set_text(*ptr);//deadbeef->pl_find_meta(track, "artist"));
-        //auto tag = bufferPtr->create_tag("b");
-        //tag->set_property_value("weight", "bold");
-        //bufferPtr->applyTag(
-        //bufferPtr->set_text(*ptr);
+        refBuffer->erase(refBuffer->begin(), refBuffer->end());
+        refBuffer->insert_with_tags(refBuffer->begin(), deadbeef->pl_find_meta(track, "title"), tagsTitle);
+        refBuffer->insert_with_tag(refBuffer->end(),
+                ustring("\n") + deadbeef->pl_find_meta(track, "artist") + "\n\n", tagItalic);
+
+        bool italic = false, bold = false;
+        size_t prev_mark = 0;
+        while (prev_mark != ustring::npos) {
+            auto bold_mark = lyrics.find("'''", prev_mark);
+            auto italic_mark = lyrics.find("''", prev_mark);
+            if (bold_mark == ustring::npos && italic_mark == ustring::npos)
+                break;
+
+            vector<RefPtr<TextTag>> tags;
+            if (italic)
+                tags.push_back(tagItalic);
+            if (bold)
+                tags.push_back(tagBold);
+            refBuffer->insert_with_tags(refBuffer->end(), lyrics.substr(prev_mark, min(bold_mark, italic_mark) - prev_mark), tags);
+
+            if (italic_mark < bold_mark) {
+                prev_mark = italic_mark + 2;
+                italic = !italic;
+            } else {
+                prev_mark = bold_mark + 3;
+                bold = !bold;
+            }
+        }
+
+        refBuffer->insert(refBuffer->end(), lyrics.substr(prev_mark));
+
+
         return false;
     });
 }
 
-void update_lyrics(void * tr) {
-    DB_playItem_t * track = (DB_playItem_t*)tr;
-    set_lyrics(track, "Loading...");
-    auto title = curl_easy_escape(nullptr, deadbeef->pl_find_meta(track, "title"), 0);
-    auto artist = curl_easy_escape(nullptr, deadbeef->pl_find_meta(track, "artist"), 0);
-
-    string url;
-
-    try {
-        xmlpp::TextReader reader(ustring("http://lyrics.wikia.com/api.php?action=lyrics&fmt=xml&artist=")
-                + artist + "&song=" + title);
-        curl_free(title);
-        curl_free(artist);
-
-        while (reader.read()) {
-            if (reader.get_node_type() == xmlpp::TextReader::xmlNodeType::Element
-                    && reader.get_name() == "lyrics") {
-                reader.read();
-                // got the cropped version of lyrics — display it before the complete one is got
-                set_lyrics(track, reader.get_value());
-                if (reader.get_value() == "Not found")
-                    return;
-            } else if (reader.get_name() == "url") {
-                reader.read();
-                url = reader.get_value();
-                break;
-            }
-        }
-    } catch (const exception & e) {
-        set_lyrics(track, "An error occurred :C");
-    }
-
-
-    url.replace(0, 24, "http://lyrics.wikia.com/api.php?action=query&prop=revisions&rvprop=content&format=xml&titles=");
-    cerr << "url = " << url << endl;
-    string lyrics;
-    try {
-        xmlpp::TextReader reader(url);
-        while (reader.read()) {
-            if (reader.get_name() == "rev") {
-                reader.read();
-                lyrics = reader.get_value();
-                break;
-            }
-        }
-    } catch (const exception & e) {
-        cerr << "Much exception: " << e.what() << endl;
-    }
-    auto pred = [](char c) { return isspace(c); };
-    auto fr = find_if_not(lyrics.begin() + lyrics.find('>') + 1, lyrics.end(), pred);
-    auto ba = find_if_not(lyrics.rbegin() + lyrics.size() - lyrics.rfind('<'), lyrics.rend(), pred).base();
-    set_lyrics(track, ustring(fr, ba));
-
-}
-
 extern "C"
 GtkWidget* construct_lyricbar() {
-    cerr << "before buffer creation" << endl;
-    bufferPtr = Gtk::TextBuffer::create();
-    cerr << "after buffer creation" << endl;
-    bufferPtr->set_text("KUKAREEEEK!!!!");
-    lyricView.set_buffer(bufferPtr);
-    lyricView.set_editable(false);
-    lyricView.set_can_focus(false);
-    lyricView.set_justification(JUSTIFY_CENTER);
-    lyricView.set_wrap_mode(WRAP_WORD_CHAR);
-    lyricView.show();
-    lyricbar.add(lyricView);
-    lyricbar.set_policy(POLICY_AUTOMATIC, POLICY_AUTOMATIC);
-    return GTK_WIDGET(lyricbar.gobj());
+    Gtk::Main::init_gtkmm_internals();
+    refBuffer = TextBuffer::create();
+    Glib::RefPtr<Gtk::TextBuffer::Tag> refTag;
+
+    tagItalic = refBuffer->create_tag();
+    tagItalic->property_style() = Pango::STYLE_ITALIC;
+
+    tagBold = refBuffer->create_tag();
+    tagBold->property_weight() = Pango::WEIGHT_BOLD;
+
+    tagLarge = refBuffer->create_tag();
+    tagLarge->property_scale() = Pango::SCALE_LARGE;
+
+    tagsTitle = {tagLarge, tagBold};
+
+    lyricView = make_unique<TextView>(refBuffer);
+    lyricView->set_editable(false);
+    lyricView->set_can_focus(false);
+    lyricView->set_justification(JUSTIFY_CENTER);
+    lyricView->set_wrap_mode(WRAP_WORD_CHAR);
+    lyricView->show();
+    lyricbar = make_unique<ScrolledWindow>();
+    lyricbar->add(*lyricView);
+    lyricbar->set_policy(POLICY_AUTOMATIC, POLICY_AUTOMATIC);
+    return GTK_WIDGET(lyricbar->gobj());
 }
 
 extern "C"
 int message_handler(struct ddb_gtkui_widget_s*, uint32_t id, uintptr_t ctx, uint32_t, uint32_t) {
-    auto event = (ddb_event_track_t *)ctx;
+    auto event = reinterpret_cast<ddb_event_track_t *>(ctx);
     switch (id) {
         case DB_EV_SONGSTARTED:
             cerr << "SONGSTARTED" << endl;
         //case DB_EV_TRACKINFOCHANGED:
             if (!event->track || deadbeef->pl_get_item_duration(event->track) <= 0)
                 return 0;
-            printf("lol");
             auto tid = deadbeef->thread_start(update_lyrics, event->track);
             deadbeef->thread_detach(tid);
             break;
@@ -124,5 +109,3 @@ int message_handler(struct ddb_gtkui_widget_s*, uint32_t id, uintptr_t ctx, uint
     return 0;
 }
 
-//void update_lyricbar(const string &lyr_txt, DB_playItem_t *track) {
-//}

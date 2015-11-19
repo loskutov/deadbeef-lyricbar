@@ -23,7 +23,7 @@ all:
 	gcc -Wall -fPIC -std=c11 -D_GNU_SOURCE main.c -c `pkg-config --cflags gtkmm-2.4`
 	g++ $(CXXFLAGS) ui.cpp -c $(LIBFLAGS)
 	g++ $(CXXFLAGS) utils.cpp -c $(LIBFLAGS)
-	gcc -shared main.o ui.o utils.o -o ddb_lyrics.so $(LIBS)
+	gcc -shared main.o ui.o utils.o -o ddb_lyricbar.so $(LIBS)
 install:
 	cp *.so /usr/lib/deadbeef/
 

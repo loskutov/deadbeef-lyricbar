@@ -5,14 +5,7 @@
 ddb_gtkui_t *gtkui_plugin;
 
 static const char settings_dlg[] =
-    //"property \"Fetch from LyricWiki\" checkbox ilitbar.lyrics.lyricwiki 1;"
-    //"property \"Fetch from Lyricsmania\" checkbox ilitbar.lyrics.lyricsmania 1;"
-    //"property \"Fetch from Lyricstime\" checkbox ilitbar.lyrics.lyricstime 1;"
-    //"property \"Fetch from Megalyrics\" checkbox ilitbar.lyrics.megalyrics 1;"
-    //"property \"Fetch from script\" checkbox ilitbar.lyrics.script 0;"
-    //"property \"Lyrics script path\" file ilitbar.lyrics.script.path \"\";"
-    "property \"Lyrics alignment type\" select[3] ilitbar.lyrics.alignment 0 left center right;"
-    //"property \"Lyrics cache update period (hr)\" spinbtn[0,99,1] ilitbar.lyrics.cache.period 0;"
+    "property \"Lyrics alignment type\" select[3] lyricbar.lyrics.alignment 0 left center right;"
 ;
 
 void lyricbar_init(struct ddb_gtkui_widget_s *widget) {
@@ -68,7 +61,7 @@ static DB_misc_t plugin = {
     .plugin.configdialog = settings_dlg
 };
 
-DB_plugin_t *ddb_lyrics_load(DB_functions_t *ddb) {
+DB_plugin_t *ddb_lyricbar_load(DB_functions_t *ddb) {
     deadbeef = ddb;
     return DB_PLUGIN(&plugin);
 }

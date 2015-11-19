@@ -7,3 +7,5 @@
 
 //int dl_file(CURL * curl, const std::string & url, std::string & result);
 bool now_playing(DB_playItem_t *track);
+
+void update_lyrics(void * tr);
