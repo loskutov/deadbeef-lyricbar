@@ -8,8 +8,7 @@
 #include <memory>
 #include <functional>
 #include "utils.h"
-
-extern DB_functions_t *deadbeef;
+#include "main.h"
 
 using namespace std;
 using namespace Gtk;
@@ -21,33 +20,39 @@ static RefPtr<TextBuffer> refBuffer;
 static RefPtr<TextTag> tagItalic, tagBold, tagLarge;
 static vector<RefPtr<TextTag>> tagsTitle;
 
+void set_lyrics(DB_playItem_t * track, const ustring & lyrics) {
+    signal_idle().connect([track, lyrics]() -> bool {
+        ustring artist, title;
+        {
+            pl_lock_guard guard;
 
-void set_lyrics(DB_playItem_t * track, ustring && lyrics) {
-    signal_idle().connect([track, lyrics]() {
-        if (!now_playing(track)) {
-            return false;
+            if (!now_playing(track))
+                return false;
+            artist = deadbeef->pl_find_meta(track, "artist");
+            title  = deadbeef->pl_find_meta(track, "title");
         }
         refBuffer->erase(refBuffer->begin(), refBuffer->end());
-        refBuffer->insert_with_tags(refBuffer->begin(), deadbeef->pl_find_meta(track, "title"), tagsTitle);
-        refBuffer->insert_with_tag(refBuffer->end(),
-                ustring("\n") + deadbeef->pl_find_meta(track, "artist") + "\n\n", tagItalic);
+        refBuffer->insert_with_tags(refBuffer->begin(), title, tagsTitle);
+        refBuffer->insert_with_tag(refBuffer->end(), ustring("\n") + artist + "\n\n", tagItalic);
 
-        bool italic = false, bold = false;
+        bool italic = false;
+        bool bold = false;
         size_t prev_mark = 0;
+        vector<RefPtr<TextTag>> tags;
         while (prev_mark != ustring::npos) {
-            auto bold_mark = lyrics.find("'''", prev_mark);
-            auto italic_mark = lyrics.find("''", prev_mark);
-            if (bold_mark == ustring::npos && italic_mark == ustring::npos)
+            size_t italic_mark = lyrics.find("''", prev_mark);
+            if (italic_mark == ustring::npos)
                 break;
+            size_t bold_mark = ustring::npos;
+            if (italic_mark < lyrics.size() - 2 && lyrics[italic_mark + 2] == '\'')
+                bold_mark = italic_mark;
 
-            vector<RefPtr<TextTag>> tags;
-            if (italic)
-                tags.push_back(tagItalic);
-            if (bold)
-                tags.push_back(tagBold);
+            tags.clear();
+            if (italic) tags.push_back(tagItalic);
+            if (bold)   tags.push_back(tagBold);
             refBuffer->insert_with_tags(refBuffer->end(), lyrics.substr(prev_mark, min(bold_mark, italic_mark) - prev_mark), tags);
 
-            if (italic_mark < bold_mark) {
+            if (bold_mark == ustring::npos) {
                 prev_mark = italic_mark + 2;
                 italic = !italic;
             } else {
@@ -55,9 +60,7 @@ void set_lyrics(DB_playItem_t * track, ustring && lyrics) {
                 bold = !bold;
             }
         }
-
-        refBuffer->insert(refBuffer->end(), lyrics.substr(prev_mark));
-
+        refBuffer->insert(refBuffer->end(), lyrics.substr(prev_mark)); // in case if no formatting found
 
         return false;
     });
@@ -67,7 +70,6 @@ extern "C"
 GtkWidget* construct_lyricbar() {
     Gtk::Main::init_gtkmm_internals();
     refBuffer = TextBuffer::create();
-    Glib::RefPtr<Gtk::TextBuffer::Tag> refTag;
 
     tagItalic = refBuffer->create_tag();
     tagItalic->property_style() = Pango::STYLE_ITALIC;

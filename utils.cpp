@@ -12,12 +12,27 @@
 using namespace std;
 using namespace Glib;
 
-extern DB_functions_t *deadbeef;
+extern DB_functions_t * deadbeef;
 
 static const ustring LW_FMT = "http://lyrics.wikia.com/api.php?action=lyrics&fmt=xml&artist=%1&song=%2";
 
-bool load_cached_lyrics(const char * artist, const char * title, string & ans) {
-    string filename = string("/home/ignat/.cache/deadbeef/lyrics/") + artist + '-' + title;
+/**
+ * Loads the cached lyrics
+ * @param artist The artist name
+ * @param title  The song title
+ * @param ans    The string to put the lyrics into
+ * @return       Whether succeeded or not
+ * @note         Have no idea about the encodings, so a bug possible here
+ */
+bool load_cached_lyrics(string artist, string title, string & ans) {
+    const char * home_cache = getenv("XDG_CACHE_HOME");
+    string lyrics_dir = (home_cache ? string(home_cache) : string(getenv("HOME")) + "/.cache") + "/deadbeef/lyrics/";
+
+    replace(artist.begin(), artist.end(), '/', '_');
+    replace(title.begin(), title.end(), '/', '_');
+
+    string filename = lyrics_dir + artist + '-' + title;
+    cerr << "filename = '" << filename << "'" << endl;
     ifstream t(filename);
     if (!t) {
         cerr << "file '" << filename << "' does not exist :(" << endl;
@@ -26,6 +41,23 @@ bool load_cached_lyrics(const char * artist, const char * title, string & ans) {
     stringstream buffer;
     buffer << t.rdbuf();
     ans = buffer.str();
+    return true;
+}
+
+bool save_cached_lyrics(string artist, string title, const ustring & lyrics) {
+    const char * home_cache = getenv("XDG_CACHE_HOME");
+    string lyrics_dir = (home_cache ? string(home_cache) : string(getenv("HOME")) + "/.cache") + "/deadbeef/lyrics/";
+
+    replace(artist.begin(), artist.end(), '/', '_');
+    replace(title.begin(), title.end(), '/', '_');
+
+    string filename = lyrics_dir + artist + '-' + title;
+    ofstream t(filename);
+    if (!t) {
+        cerr << "lyricbar: could not open file for writing" << endl;
+        return false;
+    }
+    t << lyrics;
     return true;
 }
 
@@ -43,12 +75,18 @@ void update_lyrics(void * tr) {
     DB_playItem_t * track = static_cast<DB_playItem_t*>(tr);
     set_lyrics(track, "Loading...");
 
-    auto artist = deadbeef->pl_find_meta(track, "artist");
-    auto title = deadbeef->pl_find_meta(track, "title");
+    const char * artist;
+    const char * title;
+    {
+        pl_lock_guard guard;
+        artist = deadbeef->pl_find_meta(track, "artist");
+        title  = deadbeef->pl_find_meta(track, "title");
+    }
 
     string lyrics;
     if (load_cached_lyrics(artist, title, lyrics)) {
         set_lyrics(track, lyrics);
+        cerr << "loaded cached" << endl;
         return;
     }
     auto artist_esc = curl_easy_escape(nullptr, artist, 0);
@@ -97,26 +135,26 @@ void update_lyrics(void * tr) {
     auto pred = [](char c) { return isspace(c); };
     auto front = find_if_not(lyrics.begin() + lyrics.find('>') + 1, lyrics.end(), pred);
     auto back = find_if_not(lyrics.rbegin() + lyrics.size() - lyrics.rfind('<'), lyrics.rend(), pred).base();
-    set_lyrics(track, ustring(front, back));
+    lyrics = string(front, back);
+    set_lyrics(track, lyrics);
+    save_cached_lyrics(artist, title, lyrics);
 }
 
-/// Creates the directory tree
-int mkpath(string name, mode_t mode) {
-    size_t prev = 0, pos;
+/**
+ * Creates the directory tree.
+ * @param name the directory path, including trailing slash
+ * @return 0 on success; errno after mkdir call if something went wrong
+ */
+int mkpath(const string & name, mode_t mode) {
     string dir;
-    int mdret;
-
-    if (name.back() != '/')
-        name += '/';
-
-    while ((pos = name.find_first_of('/', prev)) != string::npos){
+    size_t pos = 0;
+    while ((pos = name.find_first_of('/', pos)) != string::npos){
         dir = name.substr(0, pos++);
-        prev = pos;
         if (dir.size() == 0)
-            continue; // if leading / first time is 0 length
-        if ((mdret = mkdir(dir.c_str(), mode)) && errno != EEXIST)
-            return mdret;
+            continue; // ignore the leading slash
+        if (mkdir(dir.c_str(), mode) && errno != EEXIST)
+            return errno;
     }
-    return mdret;
+    return 0;
 }
 

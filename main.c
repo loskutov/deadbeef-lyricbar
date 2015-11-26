@@ -2,7 +2,8 @@
 #include <string.h>
 #include <stdlib.h>
 
-ddb_gtkui_t *gtkui_plugin;
+ddb_gtkui_t * gtkui_plugin;
+DB_functions_t * deadbeef;
 
 static const char settings_dlg[] =
     "property \"Lyrics alignment type\" select[3] lyricbar.lyrics.alignment 0 left center right;"
@@ -17,7 +18,7 @@ w_lyricbar_create (void) {
     ddb_gtkui_widget_t *widget = malloc(sizeof(ddb_gtkui_widget_t));
     memset(widget, 0, sizeof(ddb_gtkui_widget_t));
 
-    widget->widget = construct_lyricbar();//gtk_button_new();
+    widget->widget = construct_lyricbar();
     widget->init = lyricbar_init;
     //widget->destroy = f;
     widget->message = message_handler;
@@ -52,16 +53,14 @@ static DB_misc_t plugin = {
     .plugin.name = "Lyricbar",
     .plugin.id = "lyricbar",
     .plugin.descr = "Lyricbar plugin for DeadBeeF audio player.\nFetches and shows song’s lyrics.\n",
-    .plugin.copyright =
-        "Copyright (C) 2015 Ignat Loskutov <ignat.loskutov@gmail.com>\n"
-    ,
-    .plugin.website = "https://github.com/loskutov/deadbeef-ilitbar",
+    .plugin.copyright = "Copyright (C) 2015 Ignat Loskutov <ignat.loskutov@gmail.com>\n",
+    .plugin.website = "https://github.com/loskutov/deadbeef-lyricbar",
     .plugin.connect = lyricbar_connect,
     .plugin.disconnect = lyricbar_disconnect,
     .plugin.configdialog = settings_dlg
 };
 
-DB_plugin_t *ddb_lyricbar_load(DB_functions_t *ddb) {
+DB_plugin_t * ddb_lyricbar_load(DB_functions_t *ddb) {
     deadbeef = ddb;
     return DB_PLUGIN(&plugin);
 }
