@@ -7,8 +7,9 @@
 #include <iostream> // debugging only
 #include <memory>
 #include <functional>
+
+#include "ui.h"
 #include "utils.h"
-#include "main.h"
 
 using namespace std;
 using namespace Gtk;
@@ -109,5 +110,16 @@ int message_handler(struct ddb_gtkui_widget_s*, uint32_t id, uintptr_t ctx, uint
     }
 
     return 0;
+}
+
+extern "C"
+void lyricbar_destroy() {
+    lyricbar.reset();
+    lyricView.reset();
+    tagsTitle.clear();
+    tagLarge.reset();
+    tagBold.reset();
+    tagItalic.reset();
+    refBuffer.reset();
 }
 

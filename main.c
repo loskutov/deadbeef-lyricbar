@@ -1,4 +1,5 @@
 #include "main.h"
+#include "ui.h"
 #include <string.h>
 #include <stdlib.h>
 
@@ -18,9 +19,9 @@ w_lyricbar_create (void) {
     ddb_gtkui_widget_t *widget = malloc(sizeof(ddb_gtkui_widget_t));
     memset(widget, 0, sizeof(ddb_gtkui_widget_t));
 
-    widget->widget = construct_lyricbar();
-    widget->init = lyricbar_init;
-    //widget->destroy = f;
+    widget->widget  = construct_lyricbar();
+    widget->init    = lyricbar_init;
+    widget->destroy = lyricbar_destroy;
     widget->message = message_handler;
 
     gtkui_plugin->w_override_signals(widget->widget, widget);
