@@ -1,17 +1,60 @@
-#include "main.h"
-#include "ui.h"
 #include <string.h>
 #include <stdlib.h>
+
+#include "main.h"
+#include "ui.h"
+#include "utils.h"
+#include "gettext.h"
 
 ddb_gtkui_t * gtkui_plugin;
 DB_functions_t * deadbeef;
 
+// TODO: use the settings
 static const char settings_dlg[] =
     "property \"Lyrics alignment type\" select[3] lyricbar.lyrics.alignment 0 left center right;"
 ;
 
+static int lyricbar_disconnect() {
+    if (gtkui_plugin) {
+        gtkui_plugin->w_unreg_widget("lyricbar");
+    }
+    return 0;
+}
+
+DB_plugin_action_t remove_action = {
+    .name = "remove_lyrics",
+    .flags = DB_ACTION_MULTIPLE_TRACKS | DB_ACTION_ADD_MENU,
+    .callback2 = remove_from_cache_action,
+    .next = NULL
+};
+
 void lyricbar_init(struct ddb_gtkui_widget_s *widget) {
+    setlocale(LC_ALL, "");
+    bindtextdomain("deadbeef-lyricbar", "/usr/share/locale");
+    textdomain("deadbeef-lyricbar");
+    remove_action.title = _("Remove Lyrics From Cache");
     puts("init called");
+}
+
+static DB_plugin_action_t *
+lyricbar_get_actions (DB_playItem_t *it) {
+    deadbeef->pl_lock();
+    remove_action.flags |= DB_ACTION_DISABLED;
+    DB_playItem_t * current = deadbeef->pl_get_first (PL_MAIN);
+    while (current) {
+        if (deadbeef->pl_is_selected(current) && is_cached(
+                    deadbeef->pl_find_meta(current, "artist"),
+                    deadbeef->pl_find_meta(current, "title"))) {
+            remove_action.flags &= ~DB_ACTION_DISABLED;
+            deadbeef->pl_item_unref(current);
+            break;
+        }
+        DB_playItem_t *next = deadbeef->pl_get_next(current, PL_MAIN);
+        deadbeef->pl_item_unref(current);
+        current = next;
+    }
+    deadbeef->pl_unlock();
+    return &remove_action;
 }
 
 static ddb_gtkui_widget_t*
@@ -38,13 +81,6 @@ static int lyricbar_connect() {
     return 0;
 }
 
-static int lyricbar_disconnect() {
-    if (gtkui_plugin) {
-        gtkui_plugin->w_unreg_widget("lyricbar");
-    }
-    return 0;
-}
-
 static DB_misc_t plugin = {
     .plugin.api_vmajor = 1,
     .plugin.api_vminor = 5,
@@ -58,8 +94,10 @@ static DB_misc_t plugin = {
     .plugin.website = "https://github.com/loskutov/deadbeef-lyricbar",
     .plugin.connect = lyricbar_connect,
     .plugin.disconnect = lyricbar_disconnect,
-    .plugin.configdialog = settings_dlg
+    .plugin.configdialog = settings_dlg,
+    .plugin.get_actions = lyricbar_get_actions
 };
+
 
 DB_plugin_t * ddb_lyricbar_load(DB_functions_t *ddb) {
     deadbeef = ddb;

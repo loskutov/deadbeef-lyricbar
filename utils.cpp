@@ -8,6 +8,7 @@
 
 #include "utils.h"
 #include "ui.h"
+#include "gettext.h"
 
 using namespace std;
 using namespace Glib;
@@ -15,6 +16,22 @@ using namespace Glib;
 extern DB_functions_t * deadbeef;
 
 static const ustring LW_FMT = "http://lyrics.wikia.com/api.php?action=lyrics&fmt=xml&artist=%1&song=%2";
+
+inline string cached_filename(string artist, string title) {
+    const char * home_cache = getenv("XDG_CACHE_HOME");
+    string lyrics_dir = (home_cache ? string(home_cache) : string(getenv("HOME")) + "/.cache")
+        + "/deadbeef/lyrics/";
+
+    replace(artist.begin(), artist.end(), '/', '_');
+    replace(title.begin(), title.end(), '/', '_');
+
+    return lyrics_dir + artist + '-' + title;
+}
+
+extern "C"
+bool is_cached(const char * artist, const char * title) {
+    return access(cached_filename(artist, title).c_str(), 0) == 0;
+}
 
 /**
  * Loads the cached lyrics
@@ -24,14 +41,8 @@ static const ustring LW_FMT = "http://lyrics.wikia.com/api.php?action=lyrics&fmt
  * @return       Whether succeeded or not
  * @note         Have no idea about the encodings, so a bug possible here
  */
-bool load_cached_lyrics(string artist, string title, string & ans) {
-    const char * home_cache = getenv("XDG_CACHE_HOME");
-    string lyrics_dir = (home_cache ? string(home_cache) : string(getenv("HOME")) + "/.cache") + "/deadbeef/lyrics/";
-
-    replace(artist.begin(), artist.end(), '/', '_');
-    replace(title.begin(), title.end(), '/', '_');
-
-    string filename = lyrics_dir + artist + '-' + title;
+bool load_cached_lyrics(const string & artist, const string & title, string & ans) {
+    string filename = cached_filename(artist, title);
     cerr << "filename = '" << filename << "'" << endl;
     ifstream t(filename);
     if (!t) {
@@ -44,14 +55,8 @@ bool load_cached_lyrics(string artist, string title, string & ans) {
     return true;
 }
 
-bool save_cached_lyrics(string artist, string title, const ustring & lyrics) {
-    const char * home_cache = getenv("XDG_CACHE_HOME");
-    string lyrics_dir = (home_cache ? string(home_cache) : string(getenv("HOME")) + "/.cache") + "/deadbeef/lyrics/";
-
-    replace(artist.begin(), artist.end(), '/', '_');
-    replace(title.begin(), title.end(), '/', '_');
-
-    string filename = lyrics_dir + artist + '-' + title;
+bool save_cached_lyrics(const string & artist, const string & title, const ustring & lyrics) {
+    string filename = cached_filename(artist, title);
     ofstream t(filename);
     if (!t) {
         cerr << "lyricbar: could not open file for writing" << endl;
@@ -61,8 +66,7 @@ bool save_cached_lyrics(string artist, string title, const ustring & lyrics) {
     return true;
 }
 
-/// Checks whether the given track is playing now
-bool now_playing(DB_playItem_t *track) {
+bool is_playing(DB_playItem_t *track) {
     DB_playItem_t *pl_track = deadbeef->streamer_get_playing_track();
     if (!pl_track)
         return false;
@@ -73,7 +77,7 @@ bool now_playing(DB_playItem_t *track) {
 
 void update_lyrics(void * tr) {
     DB_playItem_t * track = static_cast<DB_playItem_t*>(tr);
-    set_lyrics(track, "Loading...");
+    set_lyrics(track, _("Loading..."));
 
     const char * artist;
     const char * title;
@@ -90,7 +94,7 @@ void update_lyrics(void * tr) {
         return;
     }
     auto artist_esc = curl_easy_escape(nullptr, artist, 0);
-    auto title_esc = curl_easy_escape(nullptr, title, 0);
+    auto title_esc  = curl_easy_escape(nullptr, title, 0);
     string url;
 
     try {
@@ -113,7 +117,7 @@ void update_lyrics(void * tr) {
             }
         }
     } catch (const exception & e) {
-        cerr << "Exception caught while parsing XML: " << e.what() << endl;
+        cerr << "lyricbar: exception caught while parsing XML: " << e.what() << endl;
         set_lyrics(track, "An error occurred :C");
         return;
     }
@@ -130,7 +134,7 @@ void update_lyrics(void * tr) {
             }
         }
     } catch (const exception & e) {
-        cerr << "Exception caught while parsing XML: " << e.what() << endl;
+        cerr << "lyricbar: exception caught while parsing XML: " << e.what() << endl;
     }
     auto pred = [](char c) { return isspace(c); };
     auto front = find_if_not(lyrics.begin() + lyrics.find('>') + 1, lyrics.end(), pred);
@@ -158,3 +162,28 @@ int mkpath(const string & name, mode_t mode) {
     return 0;
 }
 
+int remove_from_cache_action(DB_plugin_action_t *action, int ctx) {
+    DB_playItem_t * current = nullptr;
+    pl_lock_guard guard;
+    if (ctx == DDB_ACTION_CTX_SELECTION) {
+        ddb_playlist_t *playlist = deadbeef->plt_get_curr();
+        if (playlist) {
+            current = deadbeef->plt_get_first(playlist, PL_MAIN);
+            while (current) {
+                if (deadbeef->pl_is_selected (current)) {
+                    const char * artist = deadbeef->pl_find_meta(current, "artist");
+                    const char * title  = deadbeef->pl_find_meta(current, "title");
+                    if (is_cached(artist, title))
+                        remove(cached_filename(artist, title).c_str());
+                }
+                DB_playItem_t *next = deadbeef->pl_get_next(current, PL_MAIN);
+                deadbeef->pl_item_unref(current);
+                current = next;
+            }
+            deadbeef->plt_unref(playlist);
+        }
+    }
+    if (current)
+        deadbeef->pl_item_unref(current);
+    return 0;
+}

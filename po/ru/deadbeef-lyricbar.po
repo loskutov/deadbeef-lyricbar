@@ -1,0 +1,26 @@
+# Translation of deadbeef-lyricbar into Russian.
+# Copyright (C) 2015 Ignat Loskutov
+# This file is distributed under the same license as the deadbeef-lyricbar package.
+# Ignat Loskutov <ignat.loskutov@gmail.com>, 2015.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: deadbeef-lyricbar 0.1\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2015-12-10 01:20+0300\n"
+"PO-Revision-Date: 2015-12-10 01:22+0300\n"
+"Last-Translator: Ignat Loskutov <ignat.loskutov@gmail.com>\n"
+"Language-Team: Russian <LL@li.org>\n"
+"Language: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+#: utils.cpp:80
+msgid "Loading..."
+msgstr "Загрузка..."
+
+#: main.c:35
+msgid "Remove Lyrics From Cache"
+msgstr "Удалить закэшированный текст"

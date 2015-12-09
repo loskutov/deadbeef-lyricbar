@@ -1,6 +1,7 @@
 #pragma once
 #ifndef LYRICBAR_UI_H
 #define LYRICBAR_UI_H
+#include <deadbeef/deadbeef.h>
 
 #ifdef __cplusplus
 

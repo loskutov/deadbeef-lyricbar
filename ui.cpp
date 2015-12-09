@@ -27,7 +27,7 @@ void set_lyrics(DB_playItem_t * track, const ustring & lyrics) {
         {
             pl_lock_guard guard;
 
-            if (!now_playing(track))
+            if (!is_playing(track))
                 return false;
             artist = deadbeef->pl_find_meta(track, "artist");
             title  = deadbeef->pl_find_meta(track, "title");
