@@ -8,6 +8,7 @@
 
 ddb_gtkui_t * gtkui_plugin;
 DB_functions_t * deadbeef;
+static DB_misc_t plugin;
 
 // TODO: use the settings
 static const char settings_dlg[] =
@@ -16,7 +17,7 @@ static const char settings_dlg[] =
 
 static int lyricbar_disconnect() {
     if (gtkui_plugin) {
-        gtkui_plugin->w_unreg_widget("lyricbar");
+        gtkui_plugin->w_unreg_widget(plugin.plugin.id);
     }
     return 0;
 }
@@ -88,7 +89,11 @@ static DB_misc_t plugin = {
     .plugin.version_minor = 0,
     .plugin.type = DB_PLUGIN_MISC,
     .plugin.name = "Lyricbar",
-    .plugin.id = "lyricbar",
+#if GTK_MAJOR_VERSION == 2
+    .plugin.id = "lyricbar-gtk2",
+#else
+    .plugin.id = "lyricbar-gtk3",
+#endif
     .plugin.descr = "Lyricbar plugin for DeadBeeF audio player.\nFetches and shows song’s lyrics.\n",
     .plugin.copyright = "Copyright (C) 2015 Ignat Loskutov <ignat.loskutov@gmail.com>\n",
     .plugin.website = "https://github.com/loskutov/deadbeef-lyricbar",
@@ -99,7 +104,11 @@ static DB_misc_t plugin = {
 };
 
 
-DB_plugin_t * ddb_lyricbar_load(DB_functions_t *ddb) {
+#if GTK_MAJOR_VERSION == 2
+DB_plugin_t * ddb_lyricbar_gtk2_load(DB_functions_t *ddb) {
+#else
+DB_plugin_t * ddb_lyricbar_gtk3_load(DB_functions_t *ddb) {
+#endif
     deadbeef = ddb;
     return DB_PLUGIN(&plugin);
 }

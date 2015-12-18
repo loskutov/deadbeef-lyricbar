@@ -1,3 +1,4 @@
+#include <glibmm/main.h>
 #include <gtkmm/main.h>
 #include <gtkmm/widget.h>
 #include <gtkmm/textbuffer.h>
@@ -22,13 +23,13 @@ static RefPtr<TextTag> tagItalic, tagBold, tagLarge;
 static vector<RefPtr<TextTag>> tagsTitle;
 
 void set_lyrics(DB_playItem_t * track, const ustring & lyrics) {
-    signal_idle().connect([track, lyrics]() -> bool {
+    signal_idle().connect_once([track, lyrics]() -> void {
         ustring artist, title;
         {
             pl_lock_guard guard;
 
             if (!is_playing(track))
-                return false;
+                return;
             artist = deadbeef->pl_find_meta(track, "artist");
             title  = deadbeef->pl_find_meta(track, "title");
         }
@@ -62,8 +63,6 @@ void set_lyrics(DB_playItem_t * track, const ustring & lyrics) {
             }
         }
         refBuffer->insert(refBuffer->end(), lyrics.substr(prev_mark)); // in case if no formatting found
-
-        return false;
     });
 }
 

@@ -6,8 +6,8 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 
-#include "utils.h"
 #include "ui.h"
+#include "utils.h"
 #include "gettext.h"
 
 using namespace std;
@@ -59,7 +59,7 @@ bool save_cached_lyrics(const string & artist, const string & title, const ustri
     string filename = cached_filename(artist, title);
     ofstream t(filename);
     if (!t) {
-        cerr << "lyricbar: could not open file for writing" << endl;
+        cerr << "lyricbar: could not open file for writing: " << filename << endl;
         return false;
     }
     t << lyrics;
@@ -90,7 +90,6 @@ void update_lyrics(void * tr) {
     string lyrics;
     if (load_cached_lyrics(artist, title, lyrics)) {
         set_lyrics(track, lyrics);
-        cerr << "loaded cached" << endl;
         return;
     }
     auto artist_esc = curl_easy_escape(nullptr, artist, 0);

@@ -2,7 +2,6 @@
 #ifndef LYRICBAR_UTILS_H
 #define LYRICBAR_UTILS_H
 
-#include <gtk/gtk.h>
 #include <deadbeef/deadbeef.h>
 #include <deadbeef/gtkui_api.h>
 #include "main.h"
