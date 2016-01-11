@@ -10,10 +10,7 @@ ddb_gtkui_t * gtkui_plugin;
 DB_functions_t * deadbeef;
 static DB_misc_t plugin;
 
-// TODO: use the settings
-static const char settings_dlg[] =
-    "property \"Lyrics alignment type\" select[3] lyricbar.lyrics.alignment 0 left center right;"
-;
+static const char settings_dlg[] = "property \"Lyrics alignment type\" select[3] lyricbar.lyrics.alignment 0 left center right;";
 
 static int lyricbar_disconnect() {
     if (gtkui_plugin) {
@@ -29,7 +26,7 @@ DB_plugin_action_t remove_action = {
     .next = NULL
 };
 
-void lyricbar_init(struct ddb_gtkui_widget_s *widget) {
+void lyricbar_init() {
     setlocale(LC_ALL, "");
     bindtextdomain("deadbeef-lyricbar", "/usr/share/locale");
     textdomain("deadbeef-lyricbar");
@@ -38,7 +35,7 @@ void lyricbar_init(struct ddb_gtkui_widget_s *widget) {
 }
 
 static DB_plugin_action_t *
-lyricbar_get_actions (DB_playItem_t *it) {
+lyricbar_get_actions () {
     deadbeef->pl_lock();
     remove_action.flags |= DB_ACTION_DISABLED;
     DB_playItem_t * current = deadbeef->pl_get_first (PL_MAIN);

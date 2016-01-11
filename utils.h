@@ -8,8 +8,12 @@
 #ifndef __cplusplus
 #include <stdbool.h>
 #else
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
 #include <libxml++/libxml++.h>
+#pragma GCC diagnostic pop
 #include <libxml++/parsers/textreader.h>
+#include <experimental/optional>
 
 struct pl_lock_guard {
     pl_lock_guard() { deadbeef->pl_lock(); }
@@ -19,9 +23,10 @@ struct pl_lock_guard {
 bool is_playing(DB_playItem_t *track);
 
 void update_lyrics(void * tr);
+std::experimental::optional<std::string> get_lyrics_from_lyricwiki(DB_playItem_t * track);
 extern "C" {
 #endif // __cplusplus
-int remove_from_cache_action(DB_plugin_action_t *action, int ctx);
+int remove_from_cache_action(DB_plugin_action_t *, int ctx);
 bool is_cached(const char * artist, const char * title);
 
 #ifdef __cplusplus

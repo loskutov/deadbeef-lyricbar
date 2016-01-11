@@ -3,8 +3,8 @@
 #include <iostream>
 #include <fstream>
 #include <sstream>
+
 #include <sys/stat.h>
-#include <sys/types.h>
 
 #include "ui.h"
 #include "utils.h"
@@ -13,9 +13,9 @@
 using namespace std;
 using namespace Glib;
 
-extern DB_functions_t * deadbeef;
-
 static const ustring LW_FMT = "http://lyrics.wikia.com/api.php?action=lyrics&fmt=xml&artist=%1&song=%2";
+
+static experimental::optional<string>(*const observers[])(DB_playItem_t *) = {&get_lyrics_from_lyricwiki};
 
 inline string cached_filename(string artist, string title) {
     const char * home_cache = getenv("XDG_CACHE_HOME");
@@ -37,22 +37,19 @@ bool is_cached(const char * artist, const char * title) {
  * Loads the cached lyrics
  * @param artist The artist name
  * @param title  The song title
- * @param ans    The string to put the lyrics into
- * @return       Whether succeeded or not
  * @note         Have no idea about the encodings, so a bug possible here
  */
-bool load_cached_lyrics(const string & artist, const string & title, string & ans) {
+experimental::optional<string> load_cached_lyrics(const string & artist, const string & title) {
     string filename = cached_filename(artist, title);
     cerr << "filename = '" << filename << "'" << endl;
     ifstream t(filename);
     if (!t) {
         cerr << "file '" << filename << "' does not exist :(" << endl;
-        return false;
+        return {};
     }
     stringstream buffer;
     buffer << t.rdbuf();
-    ans = buffer.str();
-    return true;
+    return buffer.str();
 }
 
 bool save_cached_lyrics(const string & artist, const string & title, const ustring & lyrics) {
@@ -75,10 +72,7 @@ bool is_playing(DB_playItem_t *track) {
     return pl_track == track;
 }
 
-void update_lyrics(void * tr) {
-    DB_playItem_t * track = static_cast<DB_playItem_t*>(tr);
-    set_lyrics(track, _("Loading..."));
-
+experimental::optional<string> get_lyrics_from_lyricwiki(DB_playItem_t * track) {
     const char * artist;
     const char * title;
     {
@@ -86,29 +80,27 @@ void update_lyrics(void * tr) {
         artist = deadbeef->pl_find_meta(track, "artist");
         title  = deadbeef->pl_find_meta(track, "title");
     }
+    char * artist_esc = curl_easy_escape(nullptr, artist, 0);
+    char * title_esc  = curl_easy_escape(nullptr, title, 0);
 
-    string lyrics;
-    if (load_cached_lyrics(artist, title, lyrics)) {
-        set_lyrics(track, lyrics);
-        return;
-    }
-    auto artist_esc = curl_easy_escape(nullptr, artist, 0);
-    auto title_esc  = curl_easy_escape(nullptr, title, 0);
+    ustring api_url = ustring::compose(LW_FMT, artist_esc, title_esc);
+
+    curl_free(title_esc);
+    curl_free(artist_esc);
+
     string url;
-
     try {
-        xmlpp::TextReader reader(ustring::compose(LW_FMT, artist_esc, title_esc));
-        curl_free(title_esc);
-        curl_free(artist_esc);
+        xmlpp::TextReader reader(api_url);
 
         while (reader.read()) {
             if (reader.get_node_type() == xmlpp::TextReader::xmlNodeType::Element
                     && reader.get_name() == "lyrics") {
                 reader.read();
                 // got the cropped version of lyrics — display it before the complete one is got
-                set_lyrics(track, reader.get_value());
                 if (reader.get_value() == "Not found")
-                    return;
+                    return {};
+                else
+                    set_lyrics(track, reader.get_value());
             } else if (reader.get_name() == "url") {
                 reader.read();
                 url = reader.get_value();
@@ -117,12 +109,12 @@ void update_lyrics(void * tr) {
         }
     } catch (const exception & e) {
         cerr << "lyricbar: exception caught while parsing XML: " << e.what() << endl;
-        set_lyrics(track, "An error occurred :C");
-        return;
+        return {};
     }
 
-
     url.replace(0, 24, "http://lyrics.wikia.com/api.php?action=query&prop=revisions&rvprop=content&format=xml&titles=");
+
+    string lyrics;
     try {
         xmlpp::TextReader reader(url);
         while (reader.read()) {
@@ -134,13 +126,38 @@ void update_lyrics(void * tr) {
         }
     } catch (const exception & e) {
         cerr << "lyricbar: exception caught while parsing XML: " << e.what() << endl;
+        return {};
     }
     auto pred = [](char c) { return isspace(c); };
     auto front = find_if_not(lyrics.begin() + lyrics.find('>') + 1, lyrics.end(), pred);
     auto back = find_if_not(lyrics.rbegin() + lyrics.size() - lyrics.rfind('<'), lyrics.rend(), pred).base();
-    lyrics = string(front, back);
-    set_lyrics(track, lyrics);
-    save_cached_lyrics(artist, title, lyrics);
+    return string(front, back);
+}
+
+void update_lyrics(void * tr) {
+    DB_playItem_t * track = static_cast<DB_playItem_t*>(tr);
+    set_lyrics(track, _("Loading..."));
+    const char * artist;
+    const char * title;
+    {
+        pl_lock_guard guard;
+        artist = deadbeef->pl_find_meta(track, "artist");
+        title  = deadbeef->pl_find_meta(track, "title");
+    }
+
+    if (auto lyrics = load_cached_lyrics(artist, title)) {
+        set_lyrics(track, *lyrics);
+        return;
+    }
+
+    for (auto f : observers) {
+        if (auto lyrics = f(track)) {
+            set_lyrics(track, *lyrics);
+            save_cached_lyrics(artist, title, *lyrics);
+            return;
+        }
+    }
+    set_lyrics(track, _("Lyrics not found"));
 }
 
 /**
@@ -161,7 +178,7 @@ int mkpath(const string & name, mode_t mode) {
     return 0;
 }
 
-int remove_from_cache_action(DB_plugin_action_t *action, int ctx) {
+int remove_from_cache_action(DB_plugin_action_t *, int ctx) {
     DB_playItem_t * current = nullptr;
     pl_lock_guard guard;
     if (ctx == DDB_ACTION_CTX_SELECTION) {
@@ -182,7 +199,5 @@ int remove_from_cache_action(DB_plugin_action_t *action, int ctx) {
             deadbeef->plt_unref(playlist);
         }
     }
-    if (current)
-        deadbeef->pl_item_unref(current);
     return 0;
 }

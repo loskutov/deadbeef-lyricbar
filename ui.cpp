@@ -4,10 +4,7 @@
 #include <gtkmm/textbuffer.h>
 #include <gtkmm/textview.h>
 #include <gtkmm/scrolledwindow.h>
-#include <string>
 #include <iostream> // debugging only
-#include <memory>
-#include <functional>
 
 #include "ui.h"
 #include "utils.h"
@@ -19,8 +16,8 @@ using namespace Glib;
 static unique_ptr<TextView> lyricView;
 static unique_ptr<ScrolledWindow> lyricbar;
 static RefPtr<TextBuffer> refBuffer;
-static RefPtr<TextTag> tagItalic, tagBold, tagLarge;
-static vector<RefPtr<TextTag>> tagsTitle;
+static RefPtr<TextTag> tagItalic, tagBold, tagLarge, tagCenter;
+static vector<RefPtr<TextTag>> tagsTitle, tagsArtist;
 
 void set_lyrics(DB_playItem_t * track, const ustring & lyrics) {
     signal_idle().connect_once([track, lyrics]() -> void {
@@ -35,7 +32,7 @@ void set_lyrics(DB_playItem_t * track, const ustring & lyrics) {
         }
         refBuffer->erase(refBuffer->begin(), refBuffer->end());
         refBuffer->insert_with_tags(refBuffer->begin(), title, tagsTitle);
-        refBuffer->insert_with_tag(refBuffer->end(), ustring("\n") + artist + "\n\n", tagItalic);
+        refBuffer->insert_with_tags(refBuffer->end(), ustring("\n") + artist + "\n\n", tagsArtist);
 
         bool italic = false;
         bool bold = false;
@@ -66,6 +63,18 @@ void set_lyrics(DB_playItem_t * track, const ustring & lyrics) {
     });
 }
 
+Justification get_justification() {
+    int align = deadbeef->conf_get_int("lyricbar.lyrics.alignment", 0);
+    switch (align) {
+        case 0:
+            return JUSTIFY_LEFT;
+        case 2:
+            return JUSTIFY_RIGHT;
+        default:
+            return JUSTIFY_CENTER;
+    }
+}
+
 extern "C"
 GtkWidget* construct_lyricbar() {
     Gtk::Main::init_gtkmm_internals();
@@ -80,12 +89,16 @@ GtkWidget* construct_lyricbar() {
     tagLarge = refBuffer->create_tag();
     tagLarge->property_scale() = Pango::SCALE_LARGE;
 
-    tagsTitle = {tagLarge, tagBold};
+    tagCenter = refBuffer->create_tag();
+    tagCenter->property_justification() = JUSTIFY_CENTER;
+
+    tagsTitle = {tagLarge, tagBold, tagCenter};
+    tagsArtist = {tagItalic, tagCenter};
 
     lyricView = make_unique<TextView>(refBuffer);
     lyricView->set_editable(false);
     lyricView->set_can_focus(false);
-    lyricView->set_justification(JUSTIFY_CENTER);
+    lyricView->set_justification(get_justification());
     lyricView->set_wrap_mode(WRAP_WORD_CHAR);
     lyricView->show();
     lyricbar = make_unique<ScrolledWindow>();
@@ -98,9 +111,14 @@ extern "C"
 int message_handler(struct ddb_gtkui_widget_s*, uint32_t id, uintptr_t ctx, uint32_t, uint32_t) {
     auto event = reinterpret_cast<ddb_event_track_t *>(ctx);
     switch (id) {
+        case DB_EV_CONFIGCHANGED: {
+            cerr << "CONFIG CHANGED!" << endl;
+            Justification justification = get_justification();
+            signal_idle().connect_once([justification]() -> void { lyricView->set_justification(justification); });
+        } break;
         case DB_EV_SONGSTARTED:
             cerr << "SONGSTARTED" << endl;
-        //case DB_EV_TRACKINFOCHANGED:
+        case DB_EV_TRACKINFOCHANGED:
             if (!event->track || deadbeef->pl_get_item_duration(event->track) <= 0)
                 return 0;
             auto tid = deadbeef->thread_start(update_lyrics, event->track);
@@ -115,6 +133,7 @@ extern "C"
 void lyricbar_destroy() {
     lyricbar.reset();
     lyricView.reset();
+    tagsArtist.clear();
     tagsTitle.clear();
     tagLarge.reset();
     tagBold.reset();

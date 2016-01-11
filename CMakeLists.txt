@@ -4,8 +4,8 @@ project(ddb_lyricbar)
 find_package(PkgConfig REQUIRED)
 find_package(GTK2 2.4 COMPONENTS gtk gtkmm)
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++14 -Wall")
-set(CMAKE_C_FLAGS     "${CMAKE_C_FLAGS} -std=c11   -Wall")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++14 -Wall -Wextra -Wconversion -pedantic")
+set(CMAKE_C_FLAGS     "${CMAKE_C_FLAGS} -std=c11   -Wall -Wextra -Wconversion -pedantic")
 pkg_check_modules(LIBXMLPP REQUIRED libxml++-2.6)
 pkg_check_modules(LIBCURL  REQUIRED libcurl)
 pkg_check_modules(GTK3              gtkmm-3.0)
@@ -23,6 +23,7 @@ if(GTK2_FOUND)
         ${LIBCURL_LIBRARIES}
         ${LIBXMLPP_LIBRARIES}
     )
+    install_targets(lib/deadbeef ${PROJECT_NAME}_gtk2)
 endif()
 
 if(GTK3_FOUND)
@@ -33,4 +34,5 @@ if(GTK3_FOUND)
         ${LIBCURL_LIBRARIES}
         ${LIBXMLPP_LIBRARIES}
     )
+    install_targets(lib/deadbeef ${PROJECT_NAME}_gtk3)
 endif()
