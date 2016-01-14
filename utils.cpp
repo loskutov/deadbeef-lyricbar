@@ -1,11 +1,13 @@
-#include <curl/curl.h> // curl_easy_escape
 #include <algorithm>
-#include <iostream>
 #include <fstream>
+#include <iostream>
 #include <sstream>
+#include <stdexcept>
 
 #include <sys/stat.h>
+#include <curl/curl.h> // curl_easy_escape
 
+#include "debug.h"
 #include "ui.h"
 #include "utils.h"
 #include "gettext.h"
@@ -13,13 +15,32 @@
 using namespace std;
 using namespace Glib;
 
+// a simple RAII wrapper around curl_easy_escape
+struct escaped_string {
+    escaped_string(const char * s) : s(curl_easy_escape(nullptr, s, 0)) {
+        if (!s)
+            throw runtime_error("curl_easy_escape returned NULL");
+    }
+
+    ~escaped_string() {
+        curl_free(s);
+    }
+
+    operator const char*() const {
+        return s;
+    }
+private:
+    char * s;
+};
+
+
 static const ustring LW_FMT = "http://lyrics.wikia.com/api.php?action=lyrics&fmt=xml&artist=%1&song=%2";
 
 static experimental::optional<string>(*const observers[])(DB_playItem_t *) = {&get_lyrics_from_lyricwiki};
 
 inline string cached_filename(string artist, string title) {
-    const char * home_cache = getenv("XDG_CACHE_HOME");
-    string lyrics_dir = (home_cache ? string(home_cache) : string(getenv("HOME")) + "/.cache")
+    static const char * home_cache = getenv("XDG_CACHE_HOME");
+    static string lyrics_dir = (home_cache ? string(home_cache) : string(getenv("HOME")) + "/.cache")
         + "/deadbeef/lyrics/";
 
     replace(artist.begin(), artist.end(), '/', '_');
@@ -41,10 +62,10 @@ bool is_cached(const char * artist, const char * title) {
  */
 experimental::optional<string> load_cached_lyrics(const string & artist, const string & title) {
     string filename = cached_filename(artist, title);
-    cerr << "filename = '" << filename << "'" << endl;
+    debug_out << "filename = '" << filename << "'\n";
     ifstream t(filename);
     if (!t) {
-        cerr << "file '" << filename << "' does not exist :(" << endl;
+        debug_out << "file '" << filename << "' does not exist :(\n";
         return {};
     }
     stringstream buffer;
@@ -52,7 +73,7 @@ experimental::optional<string> load_cached_lyrics(const string & artist, const s
     return buffer.str();
 }
 
-bool save_cached_lyrics(const string & artist, const string & title, const ustring & lyrics) {
+bool save_cached_lyrics(const string & artist, const string & title, const string & lyrics) {
     string filename = cached_filename(artist, title);
     ofstream t(filename);
     if (!t) {
@@ -80,13 +101,17 @@ experimental::optional<string> get_lyrics_from_lyricwiki(DB_playItem_t * track) 
         artist = deadbeef->pl_find_meta(track, "artist");
         title  = deadbeef->pl_find_meta(track, "title");
     }
-    char * artist_esc = curl_easy_escape(nullptr, artist, 0);
-    char * title_esc  = curl_easy_escape(nullptr, title, 0);
 
-    ustring api_url = ustring::compose(LW_FMT, artist_esc, title_esc);
+    ustring api_url;
+    try {
+        escaped_string artist_esc {artist};
+        escaped_string title_esc {title};
 
-    curl_free(title_esc);
-    curl_free(artist_esc);
+        api_url = ustring::compose(LW_FMT, artist_esc, title_esc);
+    } catch (const exception & e) {
+        cerr << "lyricbar: couldn't format API URL, what(): " << e.what() << endl;
+        return {};
+    }
 
     string url;
     try {
@@ -108,7 +133,7 @@ experimental::optional<string> get_lyrics_from_lyricwiki(DB_playItem_t * track) 
             }
         }
     } catch (const exception & e) {
-        cerr << "lyricbar: exception caught while parsing XML: " << e.what() << endl;
+        cerr << "lyricbar: couldn't parse XML, what(): " << e.what() << endl;
         return {};
     }
 
@@ -125,7 +150,7 @@ experimental::optional<string> get_lyrics_from_lyricwiki(DB_playItem_t * track) 
             }
         }
     } catch (const exception & e) {
-        cerr << "lyricbar: exception caught while parsing XML: " << e.what() << endl;
+        cerr << "lyricbar: couldn't parse XML, what(): " << e.what() << endl;
         return {};
     }
     auto pred = [](char c) { return isspace(c); };
@@ -180,8 +205,9 @@ int mkpath(const string & name, mode_t mode) {
 
 int remove_from_cache_action(DB_plugin_action_t *, int ctx) {
     DB_playItem_t * current = nullptr;
-    pl_lock_guard guard;
     if (ctx == DDB_ACTION_CTX_SELECTION) {
+        pl_lock_guard guard;
+
         ddb_playlist_t *playlist = deadbeef->plt_get_curr();
         if (playlist) {
             current = deadbeef->plt_get_first(playlist, PL_MAIN);

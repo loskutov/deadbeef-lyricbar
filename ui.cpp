@@ -1,12 +1,15 @@
+#include <vector>
+#include <memory>
+
 #include <glibmm/main.h>
 #include <gtkmm/main.h>
 #include <gtkmm/widget.h>
 #include <gtkmm/textbuffer.h>
 #include <gtkmm/textview.h>
 #include <gtkmm/scrolledwindow.h>
-#include <iostream> // debugging only
 
 #include "ui.h"
+#include "debug.h"
 #include "utils.h"
 
 using namespace std;
@@ -49,7 +52,8 @@ void set_lyrics(DB_playItem_t * track, const ustring & lyrics) {
             tags.clear();
             if (italic) tags.push_back(tagItalic);
             if (bold)   tags.push_back(tagBold);
-            refBuffer->insert_with_tags(refBuffer->end(), lyrics.substr(prev_mark, min(bold_mark, italic_mark) - prev_mark), tags);
+            refBuffer->insert_with_tags(refBuffer->end(),
+                    lyrics.substr(prev_mark, min(bold_mark, italic_mark) - prev_mark), tags);
 
             if (bold_mark == ustring::npos) {
                 prev_mark = italic_mark + 2;
@@ -101,9 +105,11 @@ GtkWidget* construct_lyricbar() {
     lyricView->set_justification(get_justification());
     lyricView->set_wrap_mode(WRAP_WORD_CHAR);
     lyricView->show();
+
     lyricbar = make_unique<ScrolledWindow>();
     lyricbar->add(*lyricView);
     lyricbar->set_policy(POLICY_AUTOMATIC, POLICY_AUTOMATIC);
+
     return GTK_WIDGET(lyricbar->gobj());
 }
 
@@ -112,12 +118,12 @@ int message_handler(struct ddb_gtkui_widget_s*, uint32_t id, uintptr_t ctx, uint
     auto event = reinterpret_cast<ddb_event_track_t *>(ctx);
     switch (id) {
         case DB_EV_CONFIGCHANGED: {
-            cerr << "CONFIG CHANGED!" << endl;
+            debug_out << "CONFIG CHANGED\n";
             Justification justification = get_justification();
             signal_idle().connect_once([justification]() -> void { lyricView->set_justification(justification); });
         } break;
         case DB_EV_SONGSTARTED:
-            cerr << "SONGSTARTED" << endl;
+            debug_out << "SONG STARTED\n";
         case DB_EV_TRACKINFOCHANGED:
             if (!event->track || deadbeef->pl_get_item_duration(event->track) <= 0)
                 return 0;

@@ -72,7 +72,7 @@ w_lyricbar_create (void) {
 static int lyricbar_connect() {
     gtkui_plugin = (ddb_gtkui_t *)deadbeef->plug_get_for_id(DDB_GTKUI_PLUGIN_ID);
     if (!gtkui_plugin) {
-        fprintf(stderr, "lyricbar: can’t find gtkui plugin\n");
+        fprintf(stderr, "%s: can't find gtkui plugin\n", plugin.plugin.id);
         return -1;
     }
     gtkui_plugin->w_reg_widget("Lyricbar", 0, w_lyricbar_create, "lyricbar", NULL);
