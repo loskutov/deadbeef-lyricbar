@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <cctype> // ::isspace
 #include <fstream>
 #include <iostream>
 #include <sstream>
@@ -33,6 +34,8 @@ private:
     char * s;
 };
 
+
+const DB_playItem_t * last;
 
 static const ustring LW_FMT = "http://lyrics.wikia.com/api.php?action=lyrics&fmt=xml&artist=%1&song=%2";
 
@@ -153,14 +156,16 @@ experimental::optional<string> get_lyrics_from_lyricwiki(DB_playItem_t * track) 
         cerr << "lyricbar: couldn't parse XML, what(): " << e.what() << endl;
         return {};
     }
-    auto pred = [](char c) { return isspace(c); };
-    auto front = find_if_not(lyrics.begin() + lyrics.find('>') + 1, lyrics.end(), pred);
-    auto back = find_if_not(lyrics.rbegin() + lyrics.size() - lyrics.rfind('<'), lyrics.rend(), pred).base();
+    auto front = find_if_not(lyrics.begin() + lyrics.find('>') + 1, lyrics.end(), ::isspace);
+    auto back = find_if_not(lyrics.rbegin() + lyrics.size() - lyrics.rfind('<'), lyrics.rend(), ::isspace).base();
     return string(front, back);
 }
 
 void update_lyrics(void * tr) {
     DB_playItem_t * track = static_cast<DB_playItem_t*>(tr);
+    if (track == last)
+        return;
+
     set_lyrics(track, _("Loading..."));
     const char * artist;
     const char * title;

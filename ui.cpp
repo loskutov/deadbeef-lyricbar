@@ -64,6 +64,7 @@ void set_lyrics(DB_playItem_t * track, const ustring & lyrics) {
             }
         }
         refBuffer->insert(refBuffer->end(), lyrics.substr(prev_mark)); // in case if no formatting found
+        last = track;
     });
 }
 

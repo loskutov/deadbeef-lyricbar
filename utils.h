@@ -20,6 +20,8 @@ struct pl_lock_guard {
     ~pl_lock_guard() { deadbeef->pl_unlock(); }
 };
 
+extern const DB_playItem_t * last;
+
 bool is_playing(DB_playItem_t *track);
 
 void update_lyrics(void * tr);
