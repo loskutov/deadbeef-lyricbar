@@ -8,12 +8,12 @@
 
 #include <glibmm/ustring.h>
 
-void set_lyrics(DB_playItem_t * track, const Glib::ustring & lyrics);
+void set_lyrics(DB_playItem_t * track, Glib::ustring lyrics);
 
 extern "C" {
 #endif
 
-GtkWidget* construct_lyricbar();
+GtkWidget *construct_lyricbar();
 
 int message_handler(struct ddb_gtkui_widget_s *, uint32_t id, uintptr_t ctx, uint32_t, uint32_t);
 

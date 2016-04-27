@@ -17,14 +17,14 @@
 using namespace std;
 using namespace Glib;
 
-const DB_playItem_t * last;
+const DB_playItem_t *last;
 
 static const ustring LW_FMT = "http://lyrics.wikia.com/api.php?action=lyrics&fmt=xml&artist=%1&song=%2";
 
 static experimental::optional<string>(*const observers[])(DB_playItem_t *) = {&get_lyrics_from_lyricwiki};
 
 inline string cached_filename(string artist, string title) {
-    static const char * home_cache = getenv("XDG_CACHE_HOME");
+    static const char *home_cache = getenv("XDG_CACHE_HOME");
     static string lyrics_dir = (home_cache ? string(home_cache) : string(getenv("HOME")) + "/.cache")
         + "/deadbeef/lyrics/";
 
@@ -35,7 +35,7 @@ inline string cached_filename(string artist, string title) {
 }
 
 extern "C"
-bool is_cached(const char * artist, const char * title) {
+bool is_cached(const char *artist, const char *title) {
     return access(cached_filename(artist, title).c_str(), 0) == 0;
 }
 
@@ -45,7 +45,7 @@ bool is_cached(const char * artist, const char * title) {
  * @param title  The song title
  * @note         Have no idea about the encodings, so a bug possible here
  */
-experimental::optional<string> load_cached_lyrics(const string & artist, const string & title) {
+experimental::optional<string> load_cached_lyrics(const string &artist, const string &title) {
     string filename = cached_filename(artist, title);
     debug_out << "filename = '" << filename << "'\n";
     ifstream t(filename);
@@ -58,7 +58,7 @@ experimental::optional<string> load_cached_lyrics(const string & artist, const s
     return buffer.str();
 }
 
-bool save_cached_lyrics(const string & artist, const string & title, const string & lyrics) {
+bool save_cached_lyrics(const string &artist, const string &title, const string &lyrics) {
     string filename = cached_filename(artist, title);
     ofstream t(filename);
     if (!t) {
@@ -78,9 +78,9 @@ bool is_playing(DB_playItem_t *track) {
     return pl_track == track;
 }
 
-experimental::optional<string> get_lyrics_from_lyricwiki(DB_playItem_t * track) {
-    const char * artist;
-    const char * title;
+experimental::optional<string> get_lyrics_from_lyricwiki(DB_playItem_t *track) {
+    const char *artist;
+    const char *title;
     {
         pl_lock_guard guard;
         artist = deadbeef->pl_find_meta(track, "artist");
@@ -109,7 +109,7 @@ experimental::optional<string> get_lyrics_from_lyricwiki(DB_playItem_t * track) 
                 break;
             }
         }
-    } catch (const exception & e) {
+    } catch (const exception &e) {
         cerr << "lyricbar: couldn't parse XML (URI is '" << api_url << "'), what(): " << e.what() << endl;
         return {};
     }
@@ -126,7 +126,7 @@ experimental::optional<string> get_lyrics_from_lyricwiki(DB_playItem_t * track) 
                 break;
             }
         }
-    } catch (const exception & e) {
+    } catch (const exception &e) {
         cerr << "lyricbar: couldn't parse XML, what(): " << e.what() << endl;
         return {};
     }
@@ -135,14 +135,14 @@ experimental::optional<string> get_lyrics_from_lyricwiki(DB_playItem_t * track) 
     return string(front, back);
 }
 
-void update_lyrics(void * tr) {
-    DB_playItem_t * track = static_cast<DB_playItem_t*>(tr);
+void update_lyrics(void *tr) {
+    DB_playItem_t *track = static_cast<DB_playItem_t*>(tr);
     if (track == last)
         return;
 
     set_lyrics(track, _("Loading..."));
-    const char * artist;
-    const char * title;
+    const char *artist;
+    const char *title;
     {
         pl_lock_guard guard;
         artist = deadbeef->pl_find_meta(track, "artist");
@@ -169,7 +169,7 @@ void update_lyrics(void * tr) {
  * @param name the directory path, including trailing slash
  * @return 0 on success; errno after mkdir call if something went wrong
  */
-int mkpath(const string & name, mode_t mode) {
+int mkpath(const string &name, mode_t mode) {
     string dir;
     size_t pos = 0;
     while ((pos = name.find_first_of('/', pos)) != string::npos){
@@ -183,17 +183,16 @@ int mkpath(const string & name, mode_t mode) {
 }
 
 int remove_from_cache_action(DB_plugin_action_t *, int ctx) {
-    DB_playItem_t * current = nullptr;
     if (ctx == DDB_ACTION_CTX_SELECTION) {
         pl_lock_guard guard;
 
         ddb_playlist_t *playlist = deadbeef->plt_get_curr();
         if (playlist) {
-            current = deadbeef->plt_get_first(playlist, PL_MAIN);
+            DB_playItem_t *current = deadbeef->plt_get_first(playlist, PL_MAIN);
             while (current) {
                 if (deadbeef->pl_is_selected (current)) {
-                    const char * artist = deadbeef->pl_find_meta(current, "artist");
-                    const char * title  = deadbeef->pl_find_meta(current, "title");
+                    const char *artist = deadbeef->pl_find_meta(current, "artist");
+                    const char *title  = deadbeef->pl_find_meta(current, "title");
                     if (is_cached(artist, title))
                         remove(cached_filename(artist, title).c_str());
                 }

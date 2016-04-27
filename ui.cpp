@@ -22,8 +22,8 @@ static RefPtr<TextBuffer> refBuffer;
 static RefPtr<TextTag> tagItalic, tagBold, tagLarge, tagCenter;
 static vector<RefPtr<TextTag>> tagsTitle, tagsArtist;
 
-void set_lyrics(DB_playItem_t * track, const ustring & lyrics) {
-    signal_idle().connect_once([track, lyrics]() -> void {
+void set_lyrics(DB_playItem_t *track, ustring lyrics) {
+    signal_idle().connect_once([track, lyrics = move(lyrics)]() -> void {
         ustring artist, title;
         {
             pl_lock_guard guard;
@@ -81,7 +81,7 @@ Justification get_justification() {
 }
 
 extern "C"
-GtkWidget* construct_lyricbar() {
+GtkWidget *construct_lyricbar() {
     Gtk::Main::init_gtkmm_internals();
     refBuffer = TextBuffer::create();
 
@@ -118,11 +118,10 @@ extern "C"
 int message_handler(struct ddb_gtkui_widget_s*, uint32_t id, uintptr_t ctx, uint32_t, uint32_t) {
     auto event = reinterpret_cast<ddb_event_track_t *>(ctx);
     switch (id) {
-        case DB_EV_CONFIGCHANGED: {
+        case DB_EV_CONFIGCHANGED:
             debug_out << "CONFIG CHANGED\n";
-            Justification justification = get_justification();
-            signal_idle().connect_once([justification]() -> void { lyricView->set_justification(justification); });
-        } break;
+            signal_idle().connect_once([](){ lyricView->set_justification(get_justification()); });
+            break;
         case DB_EV_SONGSTARTED:
             debug_out << "SONG STARTED\n";
         case DB_EV_TRACKINFOCHANGED:
