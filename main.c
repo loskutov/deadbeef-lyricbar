@@ -6,8 +6,8 @@
 #include "utils.h"
 #include "gettext.h"
 
-ddb_gtkui_t * gtkui_plugin;
-DB_functions_t * deadbeef;
+ddb_gtkui_t *gtkui_plugin;
+DB_functions_t *deadbeef;
 static DB_misc_t plugin;
 
 static const char settings_dlg[] = "property \"Lyrics alignment type\" select[3] lyricbar.lyrics.alignment 0 left center right;";
@@ -23,22 +23,15 @@ DB_plugin_action_t remove_action = {
     .name = "remove_lyrics",
     .flags = DB_ACTION_MULTIPLE_TRACKS | DB_ACTION_ADD_MENU,
     .callback2 = remove_from_cache_action,
-    .next = NULL
+    .next = NULL,
+    .title = "Remove Lyrics From Cache"
 };
 
-void lyricbar_init() {
-    setlocale(LC_ALL, "");
-    bindtextdomain("deadbeef-lyricbar", "/usr/share/locale");
-    textdomain("deadbeef-lyricbar");
-    remove_action.title = _("Remove Lyrics From Cache");
-    puts("init called");
-}
-
 static DB_plugin_action_t *
-lyricbar_get_actions () {
+lyricbar_get_actions() {
     deadbeef->pl_lock();
     remove_action.flags |= DB_ACTION_DISABLED;
-    DB_playItem_t * current = deadbeef->pl_get_first (PL_MAIN);
+    DB_playItem_t *current = deadbeef->pl_get_first(PL_MAIN);
     while (current) {
         if (deadbeef->pl_is_selected(current) && is_cached(
                     deadbeef->pl_find_meta(current, "artist"),
@@ -56,12 +49,11 @@ lyricbar_get_actions () {
 }
 
 static ddb_gtkui_widget_t*
-w_lyricbar_create (void) {
+w_lyricbar_create(void) {
     ddb_gtkui_widget_t *widget = malloc(sizeof(ddb_gtkui_widget_t));
     memset(widget, 0, sizeof(ddb_gtkui_widget_t));
 
     widget->widget  = construct_lyricbar();
-    widget->init    = lyricbar_init;
     widget->destroy = lyricbar_destroy;
     widget->message = message_handler;
 
@@ -78,6 +70,20 @@ static int lyricbar_connect() {
     gtkui_plugin->w_reg_widget("Lyricbar", 0, w_lyricbar_create, "lyricbar", NULL);
     return 0;
 }
+
+#if GTK_MAJOR_VERSION == 2
+DB_plugin_t *ddb_lyricbar_gtk2_load(DB_functions_t *ddb) {
+#else
+DB_plugin_t *ddb_lyricbar_gtk3_load(DB_functions_t *ddb) {
+#endif
+    deadbeef = ddb;
+    setlocale(LC_ALL, "");
+    bindtextdomain("deadbeef-lyricbar", "/usr/share/locale");
+    textdomain("deadbeef-lyricbar");
+    remove_action.title = _(remove_action.title);
+    return DB_PLUGIN(&plugin);
+}
+
 
 static DB_misc_t plugin = {
     .plugin.api_vmajor = 1,
@@ -99,14 +105,4 @@ static DB_misc_t plugin = {
     .plugin.configdialog = settings_dlg,
     .plugin.get_actions = lyricbar_get_actions
 };
-
-
-#if GTK_MAJOR_VERSION == 2
-DB_plugin_t * ddb_lyricbar_gtk2_load(DB_functions_t *ddb) {
-#else
-DB_plugin_t * ddb_lyricbar_gtk3_load(DB_functions_t *ddb) {
-#endif
-    deadbeef = ddb;
-    return DB_PLUGIN(&plugin);
-}
 
