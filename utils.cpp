@@ -5,8 +5,9 @@
 #include <sstream>
 #include <stdexcept>
 
+#include <glibmm/uriutils.h>
+
 #include <sys/stat.h>
-#include <curl/curl.h> // curl_easy_escape
 
 #include "debug.h"
 #include "ui.h"
@@ -15,25 +16,6 @@
 
 using namespace std;
 using namespace Glib;
-
-// a simple RAII wrapper around curl_easy_escape
-struct escaped_string {
-    escaped_string(const char * s) : s(curl_easy_escape(nullptr, s, 0)) {
-        if (!s)
-            throw runtime_error("curl_easy_escape returned NULL");
-    }
-
-    ~escaped_string() {
-        curl_free(s);
-    }
-
-    operator const char*() const {
-        return s;
-    }
-private:
-    char * s;
-};
-
 
 const DB_playItem_t * last;
 
@@ -105,16 +87,8 @@ experimental::optional<string> get_lyrics_from_lyricwiki(DB_playItem_t * track) 
         title  = deadbeef->pl_find_meta(track, "title");
     }
 
-    ustring api_url;
-    try {
-        escaped_string artist_esc {artist};
-        escaped_string title_esc {title};
-
-        api_url = ustring::compose(LW_FMT, artist_esc, title_esc);
-    } catch (const exception & e) {
-        cerr << "lyricbar: couldn't format API URL, what(): " << e.what() << endl;
-        return {};
-    }
+    ustring api_url = ustring::compose(LW_FMT, uri_escape_string(artist, {}, false)
+                                             , uri_escape_string(title, {}, false));
 
     string url;
     try {
@@ -136,7 +110,7 @@ experimental::optional<string> get_lyrics_from_lyricwiki(DB_playItem_t * track) 
             }
         }
     } catch (const exception & e) {
-        cerr << "lyricbar: couldn't parse XML, what(): " << e.what() << endl;
+        cerr << "lyricbar: couldn't parse XML (URI is '" << api_url << "'), what(): " << e.what() << endl;
         return {};
     }
 
