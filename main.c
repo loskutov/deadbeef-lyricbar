@@ -36,7 +36,7 @@ lyricbar_get_actions() {
         if (deadbeef->pl_is_selected(current) && is_cached(
                     deadbeef->pl_find_meta(current, "artist"),
                     deadbeef->pl_find_meta(current, "title"))) {
-            remove_action.flags &= ~DB_ACTION_DISABLED;
+            remove_action.flags &= (uint32_t)~DB_ACTION_DISABLED;
             deadbeef->pl_item_unref(current);
             break;
         }

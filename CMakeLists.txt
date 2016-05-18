@@ -4,8 +4,8 @@ project(ddb_lyricbar)
 find_package(PkgConfig REQUIRED)
 find_package(GTK2 2.4 COMPONENTS gtk gtkmm)
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++14 -Wall -Wextra -Wconversion -pedantic")
-set(CMAKE_C_FLAGS     "${CMAKE_C_FLAGS} -std=c11   -Wall -Wextra -Wconversion -pedantic")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++14 -Wall -Wextra -Wconversion")
+set(CMAKE_C_FLAGS     "${CMAKE_C_FLAGS} -std=c11   -Wall -Wextra -Wconversion")
 pkg_check_modules(LIBXMLPP REQUIRED libxml++-2.6)
 pkg_check_modules(GTK3              gtkmm-3.0)
 
