@@ -6,8 +6,10 @@
 #include "utils.h"
 #include "gettext.h"
 
-ddb_gtkui_t *gtkui_plugin;
 DB_functions_t *deadbeef;
+
+static ddb_gtkui_t *gtkui_plugin;
+
 static DB_misc_t plugin;
 
 static const char settings_dlg[] = "property \"Lyrics alignment type\" select[3] lyricbar.lyrics.alignment 0 left center right;";
@@ -88,8 +90,8 @@ DB_plugin_t *ddb_lyricbar_gtk3_load(DB_functions_t *ddb) {
 static DB_misc_t plugin = {
     .plugin.api_vmajor = 1,
     .plugin.api_vminor = 5,
-    .plugin.version_major = 1,
-    .plugin.version_minor = 0,
+    .plugin.version_major = 0,
+    .plugin.version_minor = 1,
     .plugin.type = DB_PLUGIN_MISC,
     .plugin.name = "Lyricbar",
 #if GTK_MAJOR_VERSION == 2
