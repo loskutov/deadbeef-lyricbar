@@ -21,7 +21,7 @@ if(GTK2_FOUND)
         ${GTK2_LIBRARIES}
         ${LIBXMLPP_LIBRARIES}
     )
-    install_targets(lib/deadbeef ${PROJECT_NAME}_gtk2)
+    install(TARGETS ${PROJECT_NAME}_gtk2 DESTINATION lib/deadbeef)
 endif()
 
 if(GTK3_FOUND)
@@ -31,5 +31,5 @@ if(GTK3_FOUND)
         ${GTK3_LIBRARIES}
         ${LIBXMLPP_LIBRARIES}
     )
-    install_targets(lib/deadbeef ${PROJECT_NAME}_gtk3)
+    install(TARGETS ${PROJECT_NAME}_gtk3 DESTINATION lib/deadbeef)
 endif()
