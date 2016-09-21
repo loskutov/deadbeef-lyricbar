@@ -12,6 +12,6 @@ main.o: main.c
 	gcc -Wall -fPIC -std=c11 -D_GNU_SOURCE main.c -c `pkg-config --cflags gtkmm-2.4`
 install:
 	cp *.so /usr/lib/deadbeef/
-	msgfmt po/ru/deadbeef-lyricbar.po -o /usr/share/locale/ru/LC_MESSAGES/deadbeef-lyricbar.mo
+	msgfmt gettext/ru/deadbeef-lyricbar.po -o /usr/share/locale/ru/LC_MESSAGES/deadbeef-lyricbar.mo
 clean:
 	rm -f *.o *.so
