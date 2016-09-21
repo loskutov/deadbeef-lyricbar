@@ -95,7 +95,7 @@ experimental::optional<string> get_lyrics_from_lyricwiki(DB_playItem_t *track) {
         xmlpp::TextReader reader(api_url);
 
         while (reader.read()) {
-            if (reader.get_node_type() == xmlpp::TextReader::xmlNodeType::Element
+            if (reader.get_node_type() == xmlpp::TextReader::NodeType::Element
                     && reader.get_name() == "lyrics") {
                 reader.read();
                 // got the cropped version of lyrics — display it before the complete one is got
