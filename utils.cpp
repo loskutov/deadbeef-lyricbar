@@ -1,3 +1,7 @@
+#include "utils.h"
+
+#include <sys/stat.h>
+
 #include <algorithm>
 #include <cctype> // ::isspace
 #include <fstream>
@@ -7,11 +11,8 @@
 
 #include <glibmm/uriutils.h>
 
-#include <sys/stat.h>
-
 #include "debug.h"
 #include "ui.h"
-#include "utils.h"
 #include "gettext.h"
 
 using namespace std;
@@ -95,7 +96,7 @@ experimental::optional<string> get_lyrics_from_lyricwiki(DB_playItem_t *track) {
         xmlpp::TextReader reader(api_url);
 
         while (reader.read()) {
-            if (reader.get_node_type() == xmlpp::TextReader::xmlNodeType::Element
+            if (reader.get_node_type() == xmlpp::TextReader::NodeType::Element
                     && reader.get_name() == "lyrics") {
                 reader.read();
                 // got the cropped version of lyrics — display it before the complete one is got
@@ -130,6 +131,7 @@ experimental::optional<string> get_lyrics_from_lyricwiki(DB_playItem_t *track) {
         cerr << "lyricbar: couldn't parse XML, what(): " << e.what() << endl;
         return {};
     }
+    return lyrics;
     auto front = find_if_not(lyrics.begin() + lyrics.find('>') + 1, lyrics.end(), ::isspace);
     auto back = find_if_not(lyrics.rbegin() + lyrics.size() - lyrics.rfind('<'), lyrics.rend(), ::isspace).base();
     return string(front, back);

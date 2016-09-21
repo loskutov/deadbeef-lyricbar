@@ -2,18 +2,18 @@
 #ifndef LYRICBAR_UTILS_H
 #define LYRICBAR_UTILS_H
 
+#include <gtk/gtk.h>
 #include <deadbeef/deadbeef.h>
 #include <deadbeef/gtkui_api.h>
-#include "main.h"
+
 #ifndef __cplusplus
 #include <stdbool.h>
 #else
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
 #include <libxml++/libxml++.h>
-#pragma GCC diagnostic pop
 #include <libxml++/parsers/textreader.h>
 #include <experimental/optional>
+
+#include "main.h"
 
 struct pl_lock_guard {
     pl_lock_guard() { deadbeef->pl_lock(); }

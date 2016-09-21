@@ -1,14 +1,15 @@
-#include <vector>
+#include "ui.h"
+
 #include <memory>
+#include <vector>
 
 #include <glibmm/main.h>
 #include <gtkmm/main.h>
-#include <gtkmm/widget.h>
+#include <gtkmm/scrolledwindow.h>
 #include <gtkmm/textbuffer.h>
 #include <gtkmm/textview.h>
-#include <gtkmm/scrolledwindow.h>
+#include <gtkmm/widget.h>
 
-#include "ui.h"
 #include "debug.h"
 #include "utils.h"
 

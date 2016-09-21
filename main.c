@@ -1,12 +1,13 @@
+#include "main.h"
+
 #include <string.h>
 #include <stdlib.h>
 
-#include "main.h"
 #include "ui.h"
 #include "utils.h"
 #include "gettext.h"
 
-ddb_gtkui_t *gtkui_plugin;
+static ddb_gtkui_t *gtkui_plugin;
 DB_functions_t *deadbeef;
 static DB_misc_t plugin;
 
