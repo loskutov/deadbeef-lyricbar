@@ -17,8 +17,9 @@ using namespace std;
 using namespace Gtk;
 using namespace Glib;
 
-static unique_ptr<TextView> lyricView;
-static unique_ptr<ScrolledWindow> lyricbar;
+// TODO: eliminate all the global objects, as their initialization is not well defined
+static TextView *lyricView;
+static ScrolledWindow *lyricbar;
 static RefPtr<TextBuffer> refBuffer;
 static RefPtr<TextTag> tagItalic, tagBold, tagLarge, tagCenter;
 static vector<RefPtr<TextTag>> tagsTitle, tagsArtist;
@@ -101,14 +102,14 @@ GtkWidget *construct_lyricbar() {
     tagsTitle = {tagLarge, tagBold, tagCenter};
     tagsArtist = {tagItalic, tagCenter};
 
-    lyricView = make_unique<TextView>(refBuffer);
+    lyricView = new TextView(refBuffer);
     lyricView->set_editable(false);
     lyricView->set_can_focus(false);
     lyricView->set_justification(get_justification());
     lyricView->set_wrap_mode(WRAP_WORD_CHAR);
     lyricView->show();
 
-    lyricbar = make_unique<ScrolledWindow>();
+    lyricbar = new ScrolledWindow();
     lyricbar->add(*lyricView);
     lyricbar->set_policy(POLICY_AUTOMATIC, POLICY_AUTOMATIC);
 
@@ -138,8 +139,8 @@ int message_handler(struct ddb_gtkui_widget_s*, uint32_t id, uintptr_t ctx, uint
 
 extern "C"
 void lyricbar_destroy() {
-    lyricbar.reset();
-    lyricView.reset();
+    delete lyricbar;
+    delete lyricView;
     tagsArtist.clear();
     tagsTitle.clear();
     tagLarge.reset();
