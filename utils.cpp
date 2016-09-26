@@ -21,14 +21,13 @@ using namespace Glib;
 const DB_playItem_t *last;
 
 static const ustring LW_FMT = "http://lyrics.wikia.com/api.php?action=lyrics&fmt=xml&artist=%1&song=%2";
+static const char *home_cache = getenv("XDG_CACHE_HOME");
+static const string lyrics_dir = (home_cache ? string(home_cache) : string(getenv("HOME")) + "/.cache")
+                               + "/deadbeef/lyrics/";
 
 static experimental::optional<string>(*const observers[])(DB_playItem_t *) = {&get_lyrics_from_lyricwiki};
 
 inline string cached_filename(string artist, string title) {
-    static const char *home_cache = getenv("XDG_CACHE_HOME");
-    static string lyrics_dir = (home_cache ? string(home_cache) : string(getenv("HOME")) + "/.cache")
-        + "/deadbeef/lyrics/";
-
     replace(artist.begin(), artist.end(), '/', '_');
     replace(title.begin(), title.end(), '/', '_');
 
@@ -38,6 +37,11 @@ inline string cached_filename(string artist, string title) {
 extern "C"
 bool is_cached(const char *artist, const char *title) {
     return access(cached_filename(artist, title).c_str(), 0) == 0;
+}
+
+extern "C"
+void ensure_lyrics_path_exists() {
+    mkpath(lyrics_dir, 0755);
 }
 
 /**
@@ -117,13 +121,13 @@ experimental::optional<string> get_lyrics_from_lyricwiki(DB_playItem_t *track) {
 
     url.replace(0, 24, "http://lyrics.wikia.com/api.php?action=query&prop=revisions&rvprop=content&format=xml&titles=");
 
-    string lyrics;
+    string raw_lyrics;
     try {
         xmlpp::TextReader reader(url);
         while (reader.read()) {
             if (reader.get_name() == "rev") {
                 reader.read();
-                lyrics = reader.get_value();
+                raw_lyrics = reader.get_value();
                 break;
             }
         }
@@ -131,9 +135,12 @@ experimental::optional<string> get_lyrics_from_lyricwiki(DB_playItem_t *track) {
         cerr << "lyricbar: couldn't parse XML, what(): " << e.what() << endl;
         return {};
     }
-    return lyrics;
-    auto front = find_if_not(lyrics.begin() + lyrics.find('>') + 1, lyrics.end(), ::isspace);
-    auto back = find_if_not(lyrics.rbegin() + lyrics.size() - lyrics.rfind('<'), lyrics.rend(), ::isspace).base();
+    // TODO: parse XML in an appropriate way (unfortunately, there's no way to instantiate TextReader
+    // for a string containing an XML document).
+    auto front = find_if_not(raw_lyrics.begin() + raw_lyrics.find('>') + 1, raw_lyrics.end(), ::isspace);
+    auto back = find_if_not(raw_lyrics.rbegin() + raw_lyrics.size() - raw_lyrics.rfind('<'),
+                            raw_lyrics.rend(),
+			    ::isspace).base();
     return string(front, back);
 }
 
@@ -156,6 +163,7 @@ void update_lyrics(void *tr) {
         return;
     }
 
+    // No lyrics in the cache; try to get some and cache if succeeded
     for (auto f : observers) {
         if (auto lyrics = f(track)) {
             set_lyrics(track, *lyrics);

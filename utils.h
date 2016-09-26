@@ -25,11 +25,16 @@ extern const DB_playItem_t *last;
 bool is_playing(DB_playItem_t *track);
 
 void update_lyrics(void *tr);
+
 std::experimental::optional<std::string> get_lyrics_from_lyricwiki(DB_playItem_t *track);
+
+int mkpath(const std::string &name, mode_t mode);
+
 extern "C" {
 #endif // __cplusplus
 int remove_from_cache_action(DB_plugin_action_t *, int ctx);
 bool is_cached(const char *artist, const char *title);
+void ensure_lyrics_path_exists();
 
 #ifdef __cplusplus
 }

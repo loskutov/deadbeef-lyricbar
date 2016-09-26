@@ -85,6 +85,7 @@ DB_plugin_t *ddb_lyricbar_gtk3_load(DB_functions_t *ddb) {
     bindtextdomain("deadbeef-lyricbar", "/usr/share/locale");
     textdomain("deadbeef-lyricbar");
     remove_action.title = _(remove_action.title);
+    ensure_lyrics_path_exists();
     return DB_PLUGIN(&plugin);
 }
 
