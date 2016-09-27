@@ -9,7 +9,7 @@ gtk3: LYRICBAR=ddb_lyricbar_gtk3.so
 gtk3: lyricbar
 
 gtk2: GTKMM=gtkmm-2.4
-gtk2: GTK=gtk+-2.4
+gtk2: GTK=gtk+-2.0
 gtk2: LYRICBAR=ddb_lyricbar_gtk2.so
 gtk2: lyricbar
 
