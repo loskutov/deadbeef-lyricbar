@@ -50,7 +50,9 @@ void ensure_lyrics_path_exists() {
  * @param title  The song title
  * @note         Have no idea about the encodings, so a bug possible here
  */
-experimental::optional<ustring> load_cached_lyrics(const string &artist, const string &title) {
+experimental::optional<ustring> load_cached_lyrics(const char *artist, const char *title) {
+    if (!artist || !title)
+        return {};
     string filename = cached_filename(artist, title);
     debug_out << "filename = '" << filename << "'\n";
     ifstream t(filename);
