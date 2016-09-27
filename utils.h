@@ -9,6 +9,7 @@
 #ifndef __cplusplus
 #include <stdbool.h>
 #else
+#include <glibmm/main.h>
 #include <libxml++/libxml++.h>
 #include <libxml++/parsers/textreader.h>
 #include <experimental/optional>
@@ -26,7 +27,7 @@ bool is_playing(DB_playItem_t *track);
 
 void update_lyrics(void *tr);
 
-std::experimental::optional<std::string> get_lyrics_from_lyricwiki(DB_playItem_t *track);
+std::experimental::optional<Glib::ustring> get_lyrics_from_lyricwiki(DB_playItem_t *track);
 
 int mkpath(const std::string &name, mode_t mode);
 

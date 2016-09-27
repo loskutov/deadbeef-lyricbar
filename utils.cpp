@@ -25,7 +25,7 @@ static const char *home_cache = getenv("XDG_CACHE_HOME");
 static const string lyrics_dir = (home_cache ? string(home_cache) : string(getenv("HOME")) + "/.cache")
                                + "/deadbeef/lyrics/";
 
-static experimental::optional<string>(*const observers[])(DB_playItem_t *) = {&get_lyrics_from_lyricwiki};
+static experimental::optional<ustring>(*const observers[])(DB_playItem_t *) = {&get_lyrics_from_lyricwiki};
 
 inline string cached_filename(string artist, string title) {
     replace(artist.begin(), artist.end(), '/', '_');
@@ -50,7 +50,7 @@ void ensure_lyrics_path_exists() {
  * @param title  The song title
  * @note         Have no idea about the encodings, so a bug possible here
  */
-experimental::optional<string> load_cached_lyrics(const string &artist, const string &title) {
+experimental::optional<ustring> load_cached_lyrics(const string &artist, const string &title) {
     string filename = cached_filename(artist, title);
     debug_out << "filename = '" << filename << "'\n";
     ifstream t(filename);
@@ -60,7 +60,7 @@ experimental::optional<string> load_cached_lyrics(const string &artist, const st
     }
     stringstream buffer;
     buffer << t.rdbuf();
-    return buffer.str();
+    return ustring{buffer.str()};
 }
 
 bool save_cached_lyrics(const string &artist, const string &title, const string &lyrics) {
@@ -83,7 +83,7 @@ bool is_playing(DB_playItem_t *track) {
     return pl_track == track;
 }
 
-experimental::optional<string> get_lyrics_from_lyricwiki(DB_playItem_t *track) {
+experimental::optional<ustring> get_lyrics_from_lyricwiki(DB_playItem_t *track) {
     const char *artist;
     const char *title;
     {
@@ -121,7 +121,7 @@ experimental::optional<string> get_lyrics_from_lyricwiki(DB_playItem_t *track) {
 
     url.replace(0, 24, "http://lyrics.wikia.com/api.php?action=query&prop=revisions&rvprop=content&format=xml&titles=");
 
-    string raw_lyrics;
+    ustring raw_lyrics;
     try {
         xmlpp::TextReader reader(url);
         while (reader.read()) {
@@ -135,13 +135,28 @@ experimental::optional<string> get_lyrics_from_lyricwiki(DB_playItem_t *track) {
         cerr << "lyricbar: couldn't parse XML, what(): " << e.what() << endl;
         return {};
     }
-    // TODO: parse XML in an appropriate way (unfortunately, there's no way to instantiate TextReader
-    // for a string containing an XML document).
-    auto front = find_if_not(raw_lyrics.begin() + raw_lyrics.find('>') + 1, raw_lyrics.end(), ::isspace);
-    auto back = find_if_not(raw_lyrics.rbegin() + raw_lyrics.size() - raw_lyrics.rfind('<'),
-                            raw_lyrics.rend(),
-			    ::isspace).base();
-    return string(front, back);
+
+    raw_lyrics = "<root>" + raw_lyrics + "</root>";  // a somewhat dirty hack, but that's life
+
+    ustring lyrics;
+    try {
+        xmlpp::TextReader reader(reinterpret_cast<const uint8_t*>(raw_lyrics.data()), raw_lyrics.bytes());
+        while (reader.read()) {
+            if (reader.get_name() == "lyrics") {
+                reader.read();
+                lyrics = reader.get_value();
+                break;
+            }
+        }
+    } catch (const exception &e) {
+        cerr << "lyricbar: couldn't parse raw lyrics, what(): " << e.what() << endl;
+        return {};
+    }
+    auto first_nonspace = find_if_not(lyrics.begin(), lyrics.end(), ::isspace);
+    lyrics.erase(lyrics.begin(), first_nonspace);
+    auto after_last_nonspace = find_if_not(lyrics.rbegin(), lyrics.rend(), ::isspace).base();
+    lyrics.erase(after_last_nonspace, lyrics.end());
+    return lyrics;
 }
 
 void update_lyrics(void *tr) {
