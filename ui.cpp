@@ -11,6 +11,7 @@
 #include <gtkmm/widget.h>
 
 #include "debug.h"
+#include "gettext.h"
 #include "utils.h"
 
 using namespace std;
@@ -26,7 +27,7 @@ static vector<RefPtr<TextTag>> tagsTitle, tagsArtist;
 
 void set_lyrics(DB_playItem_t *track, ustring lyrics) {
     signal_idle().connect_once([track, lyrics = move(lyrics)]() -> void {
-        ustring artist, title;
+        const char *artist, *title;
         {
             pl_lock_guard guard;
 
@@ -35,6 +36,10 @@ void set_lyrics(DB_playItem_t *track, ustring lyrics) {
             artist = deadbeef->pl_find_meta(track, "artist");
             title  = deadbeef->pl_find_meta(track, "title");
         }
+	if (!artist)
+	    artist = _("Unknown Artist");
+	if (!title)
+	    title = _("Unknown Title");
         refBuffer->erase(refBuffer->begin(), refBuffer->end());
         refBuffer->insert_with_tags(refBuffer->begin(), title, tagsTitle);
         refBuffer->insert_with_tags(refBuffer->end(), ustring("\n") + artist + "\n\n", tagsArtist);
