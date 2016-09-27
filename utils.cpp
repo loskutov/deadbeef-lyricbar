@@ -51,8 +51,6 @@ void ensure_lyrics_path_exists() {
  * @note         Have no idea about the encodings, so a bug possible here
  */
 experimental::optional<ustring> load_cached_lyrics(const char *artist, const char *title) {
-    if (!artist || !title)
-        return {};
     string filename = cached_filename(artist, title);
     debug_out << "filename = '" << filename << "'\n";
     ifstream t(filename);
@@ -175,17 +173,19 @@ void update_lyrics(void *tr) {
         title  = deadbeef->pl_find_meta(track, "title");
     }
 
-    if (auto lyrics = load_cached_lyrics(artist, title)) {
-        set_lyrics(track, *lyrics);
-        return;
-    }
-
-    // No lyrics in the cache; try to get some and cache if succeeded
-    for (auto f : observers) {
-        if (auto lyrics = f(track)) {
+    if (artist && track) {
+        if (auto lyrics = load_cached_lyrics(artist, title)) {
             set_lyrics(track, *lyrics);
-            save_cached_lyrics(artist, title, *lyrics);
             return;
+        }
+
+        // No lyrics in the cache; try to get some and cache if succeeded
+        for (auto f : observers) {
+            if (auto lyrics = f(track)) {
+                set_lyrics(track, *lyrics);
+                save_cached_lyrics(artist, title, *lyrics);
+                return;
+            }
         }
     }
     set_lyrics(track, _("Lyrics not found"));
