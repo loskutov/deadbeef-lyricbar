@@ -30,7 +30,8 @@ main.o: main.c
 	$(CC) $(CFLAGS) main.c -c `pkg-config --cflags $(GTK)`
 
 install:
-	cp *.so $(prefix)/lib/deadbeef/
+	install -d $(prefix)/lib/deadbeef
+	install -m 666 -D *.so $(prefix)/lib/deadbeef
 	msgfmt gettext/ru/deadbeef-lyricbar.po -o /usr/share/locale/ru/LC_MESSAGES/deadbeef-lyricbar.mo
 
 clean:
