@@ -2,6 +2,7 @@ CFLAGS+=-Wall -fPIC -std=c99 -D_GNU_SOURCE
 CXXFLAGS+=-Wall -O2 -fPIC -std=c++14
 LIBFLAGS=`pkg-config --cflags libxml++-3.0 $(GTKMM) $(GTK)`
 LIBS=`pkg-config --libs libxml++-3.0 $(GTKMM) $(GTK)`
+prefix?=/usr
 
 gtk3: GTKMM=gtkmm-3.0
 gtk3: GTK=gtk+-3.0
@@ -27,7 +28,7 @@ main.o: main.c
 	$(CC) $(CFLAGS) main.c -c `pkg-config --cflags $(GTK)`
 
 install:
-	cp *.so /usr/lib/deadbeef/
+	cp *.so $(prefix)/lib/deadbeef/
 	msgfmt gettext/ru/deadbeef-lyricbar.po -o /usr/share/locale/ru/LC_MESSAGES/deadbeef-lyricbar.mo
 
 clean:
