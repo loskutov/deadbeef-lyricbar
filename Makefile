@@ -2,7 +2,9 @@ CFLAGS+=-Wall -fPIC -std=c99 -D_GNU_SOURCE
 CXXFLAGS+=-Wall -O2 -fPIC -std=c++14
 LIBFLAGS=`pkg-config --cflags libxml++-3.0 $(GTKMM) $(GTK)`
 LIBS=`pkg-config --libs libxml++-3.0 $(GTKMM) $(GTK)`
-prefix?=/usr
+
+prefix ?= $(out)
+prefix ?= /usr
 
 gtk3: GTKMM=gtkmm-3.0
 gtk3: GTK=gtk+-3.0
