@@ -4,6 +4,7 @@ with import <nixpkgs> {}; {
     buildInputs = [
       stdenv
       pkgconfig
+      gettext
       gnome3.gtkmm
       gnome3.gtk
       deadbeef

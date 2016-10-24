@@ -31,8 +31,9 @@ main.o: main.c
 
 install:
 	install -d $(prefix)/lib/deadbeef
+	install -d $(prefix)/share/locale/ru/LC_MESSAGES
 	install -m 666 -D *.so $(prefix)/lib/deadbeef
-	msgfmt gettext/ru/deadbeef-lyricbar.po -o /usr/share/locale/ru/LC_MESSAGES/deadbeef-lyricbar.mo
+	msgfmt gettext/ru/deadbeef-lyricbar.po -o $(prefix)/share/locale/ru/LC_MESSAGES/deadbeef-lyricbar.mo
 
 clean:
 	rm -f *.o *.so
