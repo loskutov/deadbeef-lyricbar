@@ -1,0 +1,7 @@
+box: nixos/nixpkgs
+build:
+  steps:
+    - script:
+        name: make
+        code: |
+            nix-shell --run make
