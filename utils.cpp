@@ -9,6 +9,7 @@
 #include <sstream>
 #include <stdexcept>
 
+#include <glibmm/fileutils.h>
 #include <glibmm/uriutils.h>
 
 #include "debug.h"
@@ -53,14 +54,12 @@ void ensure_lyrics_path_exists() {
 experimental::optional<ustring> load_cached_lyrics(const char *artist, const char *title) {
     string filename = cached_filename(artist, title);
     debug_out << "filename = '" << filename << "'\n";
-    ifstream t(filename);
-    if (!t) {
-        debug_out << "file '" << filename << "' does not exist :(\n";
+    try {
+        return {file_get_contents(filename)};
+    } catch (const FileError& error) {
+        debug_out << error.what();
         return {};
     }
-    stringstream buffer;
-    buffer << t.rdbuf();
-    return ustring{buffer.str()};
 }
 
 bool save_cached_lyrics(const string &artist, const string &title, const string &lyrics) {

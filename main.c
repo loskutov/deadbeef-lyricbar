@@ -75,6 +75,7 @@ static int lyricbar_connect() {
     return 0;
 }
 
+__attribute__ ((visibility ("default")))
 #if GTK_MAJOR_VERSION == 2
 DB_plugin_t *ddb_lyricbar_gtk2_load(DB_functions_t *ddb) {
 #else

@@ -127,7 +127,7 @@ int message_handler(struct ddb_gtkui_widget_s*, uint32_t id, uintptr_t ctx, uint
     switch (id) {
         case DB_EV_CONFIGCHANGED:
             debug_out << "CONFIG CHANGED\n";
-            signal_idle().connect_once([](){ lyricView->set_justification(get_justification()); });
+            signal_idle().connect_once([]{ lyricView->set_justification(get_justification()); });
             break;
         case DB_EV_SONGSTARTED:
             debug_out << "SONG STARTED\n";
