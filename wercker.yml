@@ -1,4 +1,4 @@
-box: nixos/nixpkgs
+box: folsomlabs/base-nix
 build:
   steps:
     - script:
