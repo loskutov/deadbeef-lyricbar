@@ -1,2 +1,22 @@
+env:
+  global:
+   # The next declaration is the encrypted COVERITY_SCAN_TOKEN, created
+   #   via the "travis encrypt" command using the project repo's public key
+   - secure: "iQWmpYK7EJ90qNUO8oc6ax8kUlzViAgTdNDCcJMWFKqTsN+1SQC83In4hI8XXc+hggXHZ5+nYizC47dm5XUcgOz4hLvN40BVCBm3Stdiu3kYlqO3BaN10sbhJ+OQcddms9M3AHuEt4v1RIjFujwTCDkDgTY3fbVVUkW7KV8AjJobXXTnc9PrRbfgJuXp2Dn7ZcmPkb48ygXDXIxOWpoSmGcS6fRyI0qBLNRfElSZYK08eGEsqcy0e7YfSNb3Uh2CkUnAByH+Dz807s+CWHGj1qBulM9+RQdKkvnin8Jc5djrwyeCQ9pDk5RV1ZIwI+WqznNGlg00/CcnvW08m1bvCp/HwZpft+BI5R/9ZDIJ2DKYSO32BSv08q749MtD55+ikGvmueLozuz/tOrgAQcncObO46LwWzkBVALi7MQPuz5QiigdeeAsEMWW08j3e57YelK+Dm+p1Wz4oVuT7vmcK37T5sSBAHeOFv6PXp4c/1EPVfUjN4Me2Zde5woa0SrK3NeVly65fOuvQCEc6RjZRPR/fIQ1ARj9dUg9PRK/+iywFplavYtise3XMwOGBxr0SdZdF/RkNoYdxX7VaPOGfB2Njh2EiPCO9ZwjQhGqNJgUdBZgpqrJnu+BZ+MO3aVh94ozvxiMG6eGAF2MM+Kbvx+t9USM2YP4t1mzeyf4uwo="
+
 language: nix
+
+before_install:
+      - echo -n | openssl s_client -connect scan.coverity.com:443 | sed -ne '/-BEGIN CERTIFICATE-/,/-END CERTIFICATE-/p' | sudo tee -a /etc/ssl/certs/ca-
+
+addons:
+  coverity_scan:
+    project:
+      name: "loskutov/deadbeef-lyricbar"
+      description: "Build submitted via Travis CI"
+    notification_email: ignat.loskutov@gmail.com
+    build_command_prepend: "make clean"
+    build_command:   "nix-shell --run make"
+    branch_pattern: coverity_scan
+
 script: nix-shell --run "make gtk3 clean && make gtk2"
