@@ -1,7 +1,0 @@
-box: folsomlabs/base-nix
-build:
-  steps:
-    - script:
-        name: make
-        code: |
-            nix-shell --run make
