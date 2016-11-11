@@ -1,2 +1,2 @@
 language: nix
-script: nix-shell --run "make gtk3 && make gtk2"
+script: nix-shell --run "make gtk3 clean && make gtk2"

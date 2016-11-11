@@ -20,14 +20,14 @@ lyricbar: ui.o utils.o main.o
 	$(if $(LYRICBAR),, $(error You should only access this target via "gtk3" or "gtk2"))
 	$(CXX) -flto -shared main.o ui.o utils.o -o $(LYRICBAR) $(LIBS)
 
-ui.o: ui.cpp
-	$(CXX) ui.cpp -c $(LIBFLAGS) $(CXXFLAGS)
+ui.o: src/ui.cpp
+	$(CXX) src/ui.cpp -c $(LIBFLAGS) $(CXXFLAGS)
 
-utils.o: utils.cpp
-	$(CXX) utils.cpp -c $(LIBFLAGS) $(CXXFLAGS)
+utils.o: src/utils.cpp
+	$(CXX) src/utils.cpp -c $(LIBFLAGS) $(CXXFLAGS)
 
-main.o: main.c
-	$(CC) $(CFLAGS) main.c -c `pkg-config --cflags $(GTK)`
+main.o: src/main.c
+	$(CC) $(CFLAGS) src/main.c -c `pkg-config --cflags $(GTK)`
 
 install:
 	install -d $(prefix)/lib/deadbeef
