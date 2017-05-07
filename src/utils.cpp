@@ -26,7 +26,7 @@ static const char *home_cache = getenv("XDG_CACHE_HOME");
 static const string lyrics_dir = (home_cache ? string(home_cache) : string(getenv("HOME")) + "/.cache")
                                + "/deadbeef/lyrics/";
 
-static experimental::optional<ustring>(*const observers[])(DB_playItem_t *) = {&get_lyrics_from_lyricwiki};
+static experimental::optional<ustring>(*const observers[])(DB_playItem_t *) = {&observe_lyrics_from_lyricwiki};
 
 inline string cached_filename(string artist, string title) {
     replace(artist.begin(), artist.end(), '/', '_');
@@ -82,7 +82,18 @@ bool is_playing(DB_playItem_t *track) {
     return pl_track == track;
 }
 
-experimental::optional<ustring> get_lyrics_from_lyricwiki(DB_playItem_t *track) {
+experimental::optional<ustring> get_lyrics_from_tag(DB_playItem_t *track) {
+    const char *lyrics;
+    {
+        pl_lock_guard guard;
+        lyrics = deadbeef->pl_find_meta(track, "lyrics");
+    }
+    if (lyrics)
+        return ustring{lyrics};
+    else return {};
+}
+
+experimental::optional<ustring> observe_lyrics_from_lyricwiki(DB_playItem_t *track) {
     const char *artist;
     const char *title;
     {
@@ -172,13 +183,18 @@ void update_lyrics(void *tr) {
         title  = deadbeef->pl_find_meta(track, "title");
     }
 
-    if (artist && track) {
+    if (auto lyrics = get_lyrics_from_tag(track)) {
+        set_lyrics(track, *lyrics);
+        return;
+    }
+
+    if (artist && title) {
         if (auto lyrics = load_cached_lyrics(artist, title)) {
             set_lyrics(track, *lyrics);
             return;
         }
 
-        // No lyrics in the cache; try to get some and cache if succeeded
+        // No lyrics in the tag or cache; try to get some and cache if succeeded
         for (auto f : observers) {
             if (auto lyrics = f(track)) {
                 set_lyrics(track, *lyrics);
