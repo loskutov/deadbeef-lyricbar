@@ -4,6 +4,7 @@
 
 #include <algorithm>
 #include <cctype> // ::isspace
+#include <cstring>
 #include <fstream>
 #include <iostream>
 #include <sstream>
@@ -82,15 +83,51 @@ bool is_playing(DB_playItem_t *track) {
     return pl_track == track;
 }
 
-experimental::optional<ustring> get_lyrics_from_tag(DB_playItem_t *track) {
-    const char *lyrics;
+static
+experimental::optional<ustring> get_lyrics_from_id3v2(DB_playItem_t *track) {
+    const char *path;
     {
         pl_lock_guard guard;
-        lyrics = deadbeef->pl_find_meta(track, "lyrics");
+        path = deadbeef->pl_find_meta(track, ":URI");
     }
+
+    DB_FILE *fp = deadbeef->fopen(path);
+    if (!fp) {
+        cerr << "lyricbar: tried to get lyrics from tag but couldn't fopen the file" << endl;
+        return {};
+    }
+
+    id3v2_tag id3;
+    int res = deadbeef->junk_id3v2_read_full(track, &id3.tag, fp);
+
+    deadbeef->fclose(fp);
+
+    if (res != 0) {
+        debug_out << "junk_id3v2_read_full returned " << res << endl;
+        return {};
+    }
+
+    for (auto frame = id3.tag.frames; frame; frame = frame->next) {
+        if (!strcmp(frame->id, "USLT") && frame->size > 5)
+            return ustring{reinterpret_cast<const char*>(frame->data + 5)};
+    }
+
+    return {};
+}
+
+static
+experimental::optional<ustring> get_lyrics_from_metadata(DB_playItem_t *track) {
+    pl_lock_guard guard;
+    const char *lyrics = deadbeef->pl_find_meta(track, "lyrics");
     if (lyrics)
         return ustring{lyrics};
     else return {};
+}
+
+experimental::optional<ustring> get_lyrics_from_tag(DB_playItem_t *track) {
+    if (auto ans = get_lyrics_from_metadata(track))
+        return ans;
+    else return get_lyrics_from_id3v2(track);
 }
 
 experimental::optional<ustring> observe_lyrics_from_lyricwiki(DB_playItem_t *track) {
@@ -162,10 +199,10 @@ experimental::optional<ustring> observe_lyrics_from_lyricwiki(DB_playItem_t *tra
         cerr << "lyricbar: couldn't parse raw lyrics, what(): " << e.what() << endl;
         return {};
     }
-    auto first_nonspace = find_if_not(lyrics.begin(), lyrics.end(), ::isspace);
-    lyrics.erase(lyrics.begin(), first_nonspace);
     auto after_last_nonspace = find_if_not(lyrics.rbegin(), lyrics.rend(), ::isspace).base();
     lyrics.erase(after_last_nonspace, lyrics.end());
+    auto first_nonspace = find_if_not(lyrics.begin(), lyrics.end(), ::isspace);
+    lyrics.erase(lyrics.begin(), first_nonspace);
     return lyrics;
 }
 
@@ -174,18 +211,19 @@ void update_lyrics(void *tr) {
     if (track == last)
         return;
 
+    if (auto lyrics = get_lyrics_from_tag(track)) {
+        set_lyrics(track, *lyrics);
+        return;
+    }
+
     set_lyrics(track, _("Loading..."));
+
     const char *artist;
     const char *title;
     {
         pl_lock_guard guard;
         artist = deadbeef->pl_find_meta(track, "artist");
         title  = deadbeef->pl_find_meta(track, "title");
-    }
-
-    if (auto lyrics = get_lyrics_from_tag(track)) {
-        set_lyrics(track, *lyrics);
-        return;
     }
 
     if (artist && title) {

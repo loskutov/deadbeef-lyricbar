@@ -1,5 +1,5 @@
 CFLAGS+=-std=c99 -Wall -O2 -D_GNU_SOURCE -fPIC -fvisibility=hidden -flto
-CXXFLAGS+=-std=c++17 -Wall -O2 -fPIC -fvisibility=hidden -flto
+CXXFLAGS+=-std=c++14 -Wall -O2 -fPIC -fvisibility=hidden -flto
 LIBFLAGS=`pkg-config --cflags libxml++-3.0 $(GTKMM) $(GTK)`
 LIBS=`pkg-config --libs libxml++-3.0 $(GTKMM) $(GTK)`
 
