@@ -7,7 +7,9 @@ Inspired by [Infobar Plugin](https://bitbucket.org/dsimbiriatin/deadbeef-infobar
 check [my fork of it](https://bitbucket.org/IgnatLoskutov/deadbeef-infobar-ng), containing a few bug-fixes and minor improvements.
 
 ## Dependencies
-To use this plugin, you need to have [gtkmm](http://www.gtkmm.org/) and [libxml++](http://libxmlplusplus.sourceforge.net/) installed (both available in the repositories of most modern distributions).
+To use this plugin, you need to have [gtkmm](http://www.gtkmm.org/) and [libxml++ 3](http://libxmlplusplus.sourceforge.net/) installed.
+
+While gtkmm is available in the repositories of most modern distributions (e.g. in Ubuntu you'll have to install `libgtkmm-3.0-dev` for the gtk3 version of lyricbar), libxml++3 is absent in many of them. If that's the case, you'll have to build it from sources (e.g. for Ubuntu: `sudo apt install checkinstall libxml2-dev && wget http://ftp.gnome.org/pub/GNOME/sources/libxml++/3.0/libxml++-3.0.1.tar.xz && tar -xJf libxml++-3.0.1.tar.xz && cd libxml++-3.0.1 && ./configure --prefix=/usr && make && sudo checkinstall`).
 
 ## Installation
 Clone this repository and perform the following:
