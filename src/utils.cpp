@@ -38,7 +38,7 @@ inline string cached_filename(string artist, string title) {
 
 extern "C"
 bool is_cached(const char *artist, const char *title) {
-    return access(cached_filename(artist, title).c_str(), 0) == 0;
+    return artist && title && access(cached_filename(artist, title).c_str(), 0) == 0;
 }
 
 extern "C"
