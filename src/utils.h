@@ -17,13 +17,13 @@
 #include "main.h"
 
 struct pl_lock_guard {
-    pl_lock_guard() { deadbeef->pl_lock(); }
-    ~pl_lock_guard() { deadbeef->pl_unlock(); }
+	pl_lock_guard() { deadbeef->pl_lock(); }
+	~pl_lock_guard() { deadbeef->pl_unlock(); }
 };
 
 struct id3v2_tag {
-    DB_id3v2_tag_t tag{};
-    ~id3v2_tag() { deadbeef->junk_id3v2_free(&tag); }
+	DB_id3v2_tag_t tag{};
+	~id3v2_tag() { deadbeef->junk_id3v2_free(&tag); }
 };
 
 extern const DB_playItem_t *last;
