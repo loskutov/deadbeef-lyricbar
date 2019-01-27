@@ -167,7 +167,8 @@ experimental::optional<ustring> download_lyrics_from_lyricwiki(DB_playItem_t *tr
 		return {};
 	}
 
-	url.replace(0, 24, "http://lyrics.wikia.com/api.php?action=query&prop=revisions&rvprop=content&format=xml&titles=");
+	url.replace(0, strlen("http://lyrics.wikia.com/"),
+	            "http://lyrics.wikia.com/api.php?action=query&prop=revisions&rvprop=content&format=xml&titles=");
 
 	string raw_lyrics;
 	try {
