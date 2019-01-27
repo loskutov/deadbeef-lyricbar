@@ -27,7 +27,7 @@ static const char *home_cache = getenv("XDG_CACHE_HOME");
 static const string lyrics_dir = (home_cache ? string(home_cache) : string(getenv("HOME")) + "/.cache")
                                + "/deadbeef/lyrics/";
 
-static experimental::optional<ustring>(*const observers[])(DB_playItem_t *) = {&observe_lyrics_from_lyricwiki};
+static experimental::optional<ustring>(*const providers[])(DB_playItem_t *) = {&download_lyrics_from_lyricwiki};
 
 inline string cached_filename(string artist, string title) {
 	replace(artist.begin(), artist.end(), '/', '_');
@@ -130,7 +130,7 @@ experimental::optional<ustring> get_lyrics_from_tag(DB_playItem_t *track) {
 	else return get_lyrics_from_id3v2(track);
 }
 
-experimental::optional<ustring> observe_lyrics_from_lyricwiki(DB_playItem_t *track) {
+experimental::optional<ustring> download_lyrics_from_lyricwiki(DB_playItem_t *track) {
 	const char *artist;
 	const char *title;
 	{
@@ -233,7 +233,7 @@ void update_lyrics(void *tr) {
 		}
 
 		// No lyrics in the tag or cache; try to get some and cache if succeeded
-		for (auto f : observers) {
+		for (auto f : providers) {
 			if (auto lyrics = f(track)) {
 				set_lyrics(track, *lyrics);
 				save_cached_lyrics(artist, title, *lyrics);
