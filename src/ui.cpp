@@ -78,7 +78,7 @@ void set_lyrics(DB_playItem_t *track, ustring lyrics) {
 }
 
 Justification get_justification() {
-	int align = deadbeef->conf_get_int("lyricbar.lyrics.alignment", 0);
+	int align = deadbeef->conf_get_int("lyricbar.lyrics.alignment", 1);
 	switch (align) {
 		case 0:
 			return JUSTIFY_LEFT;
