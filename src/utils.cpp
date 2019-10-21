@@ -94,6 +94,38 @@ experimental::optional<ustring> get_lyrics_from_metadata(DB_playItem_t *track) {
 	else return {};
 }
 
+void char_asciify(gunichar c, ustring &out) {
+	switch (c) {
+		case U'’':
+		case U'´':
+		case U'`':
+			c = '\'';
+			break;
+		case U'“':
+		case U'”':
+			c = '"';
+			break;
+		case U'–':
+		case U'—':
+			c = '-';
+			break;
+		case U'…':
+			out.append(3, '.');
+			return;
+		}
+	out.push_back(c);
+}
+
+void asciify(ustring &s) {
+	s.normalize(NormalizeMode::NORMALIZE_ALL_COMPOSE);
+	ustring ans;
+	ans.reserve(s.bytes());
+	for (auto c : s) {
+		char_asciify(c, ans);
+	}
+	s = std::move(ans);
+}
+
 experimental::optional<ustring> download_lyrics_from_lyricwiki(DB_playItem_t *track) {
 	ustring artist;
 	ustring title;
@@ -102,7 +134,8 @@ experimental::optional<ustring> download_lyrics_from_lyricwiki(DB_playItem_t *tr
 		artist = deadbeef->pl_find_meta(track, "artist");
 		title  = deadbeef->pl_find_meta(track, "title");
 	}
-
+	asciify(artist);
+	asciify(title);
 	ustring api_url = ustring::compose(LW_FMT, uri_escape_string(artist, {}, false)
 	                                         , uri_escape_string(title, {}, false));
 
