@@ -132,8 +132,8 @@ experimental::optional<ustring> get_lyrics_from_tag(DB_playItem_t *track) {
 }
 
 experimental::optional<ustring> download_lyrics_from_lyricwiki(DB_playItem_t *track) {
-	const char *artist;
-	const char *title;
+	ustring artist;
+	ustring title;
 	{
 		pl_lock_guard guard;
 		artist = deadbeef->pl_find_meta(track, "artist");
