@@ -198,8 +198,6 @@ experimental::optional<ustring> download_lyrics_from_lyricwiki(DB_playItem_t *tr
 
 void update_lyrics(void *tr) {
 	DB_playItem_t *track = static_cast<DB_playItem_t*>(tr);
-	if (track == last)
-		return;
 
 	if (auto lyrics = get_lyrics_from_tag(track)) {
 		set_lyrics(track, *lyrics);

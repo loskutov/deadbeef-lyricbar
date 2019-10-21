@@ -134,7 +134,7 @@ int message_handler(struct ddb_gtkui_widget_s*, uint32_t id, uintptr_t ctx, uint
 		case DB_EV_SONGSTARTED:
 			debug_out << "SONG STARTED\n";
 		case DB_EV_TRACKINFOCHANGED:
-			if (!event->track || deadbeef->pl_get_item_duration(event->track) <= 0)
+			if (!event->track || event->track == last || deadbeef->pl_get_item_duration(event->track) <= 0)
 				return 0;
 			auto tid = deadbeef->thread_start(update_lyrics, event->track);
 			deadbeef->thread_detach(tid);
