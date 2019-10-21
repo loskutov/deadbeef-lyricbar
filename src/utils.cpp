@@ -28,7 +28,7 @@ static const char *home_cache = getenv("XDG_CACHE_HOME");
 static const string lyrics_dir = (home_cache ? string(home_cache) : string(getenv("HOME")) + "/.cache")
                                + "/deadbeef/lyrics/";
 
-static experimental::optional<ustring>(*const providers[])(DB_playItem_t *) = {&download_lyrics_from_lyricwiki};
+static experimental::optional<ustring>(*const providers[])(DB_playItem_t *) = {&get_lyrics_from_script, &download_lyrics_from_lyricwiki};
 
 inline string cached_filename(string artist, string title) {
 	replace(artist.begin(), artist.end(), '/', '_');
@@ -94,6 +94,55 @@ experimental::optional<ustring> get_lyrics_from_metadata(DB_playItem_t *track) {
 	else return {};
 }
 
+experimental::optional<ustring> get_lyrics_from_script(DB_playItem_t *track) {
+	array<char, 4096> buf;
+	deadbeef->conf_get_str("lyricbar.customcmd", nullptr, buf.data(), buf.size());
+	if (!buf[0]) {
+		return {};
+	}
+	auto tf_code = deadbeef->tf_compile(buf.data());
+	if (!tf_code) {
+	    std::cerr << "lyricbar: Invalid script command!\n";
+	    return {};
+	}
+	ddb_tf_context_t ctx{};
+	ctx._size = sizeof(ctx);
+	ctx.it = track;
+
+	int command_len = deadbeef->tf_eval(&ctx, tf_code, buf.data(), buf.size());
+	if (command_len < 0) {
+		std::cerr << "lyricbar: Invalid script command!\n";
+		return {};
+	}
+
+	deadbeef->tf_free(tf_code);
+
+	std::unique_ptr<FILE, decltype(&pclose)> pipe(popen(buf.data(), "r"), pclose);
+	if (!pipe) {
+		perror("lyricbar: popen script command");
+		return {};
+	}
+	size_t nbytes;
+	string ans;
+	do {
+		nbytes = fread(buf.data(), 1, buf.size(), pipe.get());
+		ans.append(buf.data(), nbytes);
+	} while (nbytes != 0);
+	if (ferror(pipe.get())) {
+		perror("lyricbar: fread from script output");
+		return {};
+	}
+	if (ans.empty()) {
+		return {};
+	}
+	auto res = ustring{std::move(ans)};
+	if (!res.validate()) {
+		cerr << "lyricbar: script output is not a valid UTF8 string!\n";
+		return {};
+	}
+	return {std::move(res)};
+}
+
 void char_asciify(gunichar c, ustring &out) {
 	switch (c) {
 		case U'’':
@@ -147,11 +196,12 @@ experimental::optional<ustring> download_lyrics_from_lyricwiki(DB_playItem_t *tr
 			if (reader.get_node_type() == xmlpp::TextReader::NodeType::Element
 			        && reader.get_name() == "lyrics") {
 				reader.read();
-				// got the cropped version of lyrics — display it before the complete one is got
 				if (reader.get_value() == "Not found")
 					return {};
-				else
+				else {
+					// got the cropped version of lyrics — display it before the complete one is got
 					set_lyrics(track, reader.get_value());
+				}
 			} else if (reader.get_name() == "url") {
 				reader.read();
 				url = reader.get_value();
@@ -200,8 +250,6 @@ void update_lyrics(void *tr) {
 		return;
 	}
 
-	set_lyrics(track, _("Loading..."));
-
 	const char *artist;
 	const char *title;
 	{
@@ -215,6 +263,8 @@ void update_lyrics(void *tr) {
 			set_lyrics(track, *lyrics);
 			return;
 		}
+
+		set_lyrics(track, _("Loading..."));
 
 		// No lyrics in the tag or cache; try to get some and cache if succeeded
 		for (auto f : providers) {
