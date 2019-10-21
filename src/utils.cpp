@@ -85,50 +85,13 @@ bool is_playing(DB_playItem_t *track) {
 }
 
 static
-experimental::optional<ustring> get_lyrics_from_id3v2(DB_playItem_t *track) {
-	const char *path;
-	{
-		pl_lock_guard guard;
-		path = deadbeef->pl_find_meta(track, ":URI");
-	}
-
-	DB_FILE *fp = deadbeef->fopen(path);
-	if (!fp) {
-		cerr << "lyricbar: tried to get lyrics from tag but couldn't fopen the file" << endl;
-		return {};
-	}
-
-	id3v2_tag id3;
-	int res = deadbeef->junk_id3v2_read_full(track, &id3.tag, fp);
-
-	deadbeef->fclose(fp);
-
-	if (res != 0) {
-		debug_out << "junk_id3v2_read_full returned " << res << endl;
-		return {};
-	}
-
-	for (auto frame = id3.tag.frames; frame; frame = frame->next) {
-		if (!strcmp(frame->id, "USLT") && frame->size > 5)
-			return ustring{reinterpret_cast<const char*>(frame->data + 5)};
-	}
-
-	return {};
-}
-
-static
 experimental::optional<ustring> get_lyrics_from_metadata(DB_playItem_t *track) {
 	pl_lock_guard guard;
-	const char *lyrics = deadbeef->pl_find_meta(track, "lyrics");
+	const char *lyrics = deadbeef->pl_find_meta(track, "lyrics")
+	                  ?: deadbeef->pl_find_meta(track, "unsynced lyrics");
 	if (lyrics)
 		return ustring{lyrics};
 	else return {};
-}
-
-experimental::optional<ustring> get_lyrics_from_tag(DB_playItem_t *track) {
-	if (auto ans = get_lyrics_from_metadata(track))
-		return ans;
-	else return get_lyrics_from_id3v2(track);
 }
 
 experimental::optional<ustring> download_lyrics_from_lyricwiki(DB_playItem_t *track) {
@@ -199,7 +162,7 @@ experimental::optional<ustring> download_lyrics_from_lyricwiki(DB_playItem_t *tr
 void update_lyrics(void *tr) {
 	DB_playItem_t *track = static_cast<DB_playItem_t*>(tr);
 
-	if (auto lyrics = get_lyrics_from_tag(track)) {
+	if (auto lyrics = get_lyrics_from_metadata(track)) {
 		set_lyrics(track, *lyrics);
 		return;
 	}
