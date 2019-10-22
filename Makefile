@@ -18,7 +18,7 @@ gtk2: lyricbar
 
 lyricbar: ui.o utils.o main.o
 	$(if $(LYRICBAR),, $(error You should only access this target via "gtk3" or "gtk2"))
-	$(CXX) -flto -shared main.o ui.o utils.o -o $(LYRICBAR) $(LIBS)
+	$(CXX) -flto -shared -Wl,-rpath=/usr/local/lib main.o ui.o utils.o -o $(LYRICBAR) $(LIBS)
 
 ui.o: src/ui.cpp
 	$(CXX) src/ui.cpp -c $(LIBFLAGS) $(CXXFLAGS)
