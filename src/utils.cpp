@@ -219,7 +219,7 @@ experimental::optional<ustring> download_lyrics_from_lyricwiki(DB_playItem_t *tr
 		return {};
 	}
 	try {
-		xmlpp::TextReader reader{(const unsigned char *)doc->data(), doc->size()};
+		xmlpp::TextReader reader{(const unsigned char *)doc->data(), static_cast<unsigned int>(doc->size())};
 
 		while (reader.read()) {
 			if (reader.get_node_type() == xmlpp::TextReader::NodeType::Element
@@ -251,7 +251,7 @@ experimental::optional<ustring> download_lyrics_from_lyricwiki(DB_playItem_t *tr
 	}
 	string raw_lyrics;
 	try {
-		xmlpp::TextReader reader{(const unsigned char *)doc->data(), doc->size()};
+		xmlpp::TextReader reader{(const unsigned char *)doc->data(), static_cast<unsigned int>(doc->size())};
 		while (reader.read()) {
 			if (reader.get_name() == "rev") {
 				reader.read();
