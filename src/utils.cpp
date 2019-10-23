@@ -13,6 +13,7 @@
 
 #include <glibmm/fileutils.h>
 #include <glibmm/uriutils.h>
+#include <giomm.h>
 
 #include "debug.h"
 #include "ui.h"
@@ -95,8 +96,8 @@ experimental::optional<ustring> get_lyrics_from_metadata(DB_playItem_t *track) {
 }
 
 experimental::optional<ustring> get_lyrics_from_script(DB_playItem_t *track) {
-	array<char, 4096> buf;
-	deadbeef->conf_get_str("lyricbar.customcmd", nullptr, buf.data(), buf.size());
+	std::string buf = std::string(4096, '\0');
+	deadbeef->conf_get_str("lyricbar.customcmd", nullptr, &buf[0], buf.size());
 	if (!buf[0]) {
 		return {};
 	}
@@ -109,33 +110,24 @@ experimental::optional<ustring> get_lyrics_from_script(DB_playItem_t *track) {
 	ctx._size = sizeof(ctx);
 	ctx.it = track;
 
-	int command_len = deadbeef->tf_eval(&ctx, tf_code, buf.data(), buf.size());
+	int command_len = deadbeef->tf_eval(&ctx, tf_code, &buf[0], buf.size());
 	deadbeef->tf_free(tf_code);
-
 	if (command_len < 0) {
 		std::cerr << "lyricbar: Invalid script command!\n";
 		return {};
 	}
 
-	std::unique_ptr<FILE, decltype(&pclose)> pipe(popen(buf.data(), "r"), pclose);
-	if (!pipe) {
-		perror("lyricbar: popen script command");
+	buf.resize(command_len);
+
+	std::string script_output;
+	int exit_status = 0;
+	spawn_command_line_sync(buf, &script_output, nullptr, &exit_status);
+
+	if (script_output.empty() || exit_status != 0) {
 		return {};
 	}
-	size_t nbytes;
-	string ans;
-	do {
-		nbytes = fread(buf.data(), 1, buf.size(), pipe.get());
-		ans.append(buf.data(), nbytes);
-	} while (nbytes != 0);
-	if (ferror(pipe.get())) {
-		perror("lyricbar: fread from script output");
-		return {};
-	}
-	if (ans.empty()) {
-		return {};
-	}
-	auto res = ustring{std::move(ans)};
+
+	auto res = ustring{std::move(script_output)};
 	if (!res.validate()) {
 		cerr << "lyricbar: script output is not a valid UTF8 string!\n";
 		return {};
