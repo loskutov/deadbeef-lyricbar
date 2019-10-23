@@ -110,12 +110,12 @@ experimental::optional<ustring> get_lyrics_from_script(DB_playItem_t *track) {
 	ctx.it = track;
 
 	int command_len = deadbeef->tf_eval(&ctx, tf_code, buf.data(), buf.size());
+	deadbeef->tf_free(tf_code);
+
 	if (command_len < 0) {
 		std::cerr << "lyricbar: Invalid script command!\n";
 		return {};
 	}
-
-	deadbeef->tf_free(tf_code);
 
 	std::unique_ptr<FILE, decltype(&pclose)> pipe(popen(buf.data(), "r"), pclose);
 	if (!pipe) {
