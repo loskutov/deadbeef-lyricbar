@@ -172,8 +172,14 @@ experimental::optional<ustring> download_lyrics_from_lyricwiki(DB_playItem_t *tr
 	ustring title;
 	{
 		pl_lock_guard guard;
-		artist = deadbeef->pl_find_meta(track, "artist");
-		title  = deadbeef->pl_find_meta(track, "title");
+		const char *artist_raw, *title_raw;
+		artist_raw = deadbeef->pl_find_meta(track, "artist");
+		title_raw  = deadbeef->pl_find_meta(track, "title");
+		if (!artist_raw || !title_raw) {
+		    return {};
+		}
+		artist = artist_raw;
+		title = title_raw;
 	}
 	asciify(artist);
 	asciify(title);

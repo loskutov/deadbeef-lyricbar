@@ -27,19 +27,15 @@ static vector<RefPtr<TextTag>> tagsTitle, tagsArtist;
 
 void set_lyrics(DB_playItem_t *track, ustring lyrics) {
 	signal_idle().connect_once([track, lyrics = move(lyrics)] {
-		const char *artist, *title;
+		ustring artist, title;
 		{
 			pl_lock_guard guard;
 
 			if (!is_playing(track))
 				return;
-			artist = deadbeef->pl_find_meta(track, "artist");
-			title  = deadbeef->pl_find_meta(track, "title");
+			artist = deadbeef->pl_find_meta(track, "artist") ?: _("Unknown Artist");
+			title  = deadbeef->pl_find_meta(track, "title") ?: _("Unknown Title");
 		}
-		if (!artist)
-			artist = _("Unknown Artist");
-		if (!title)
-			title = _("Unknown Title");
 		refBuffer->erase(refBuffer->begin(), refBuffer->end());
 		refBuffer->insert_with_tags(refBuffer->begin(), title, tagsTitle);
 		refBuffer->insert_with_tags(refBuffer->end(), ustring{"\n"} + artist + "\n\n", tagsArtist);
