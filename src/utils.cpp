@@ -13,6 +13,7 @@
 
 #include <glibmm/fileutils.h>
 #include <glibmm/uriutils.h>
+#include <giomm.h>
 
 #include "debug.h"
 #include "ui.h"
@@ -28,7 +29,7 @@ static const char *home_cache = getenv("XDG_CACHE_HOME");
 static const string lyrics_dir = (home_cache ? string(home_cache) : string(getenv("HOME")) + "/.cache")
                                + "/deadbeef/lyrics/";
 
-static experimental::optional<ustring>(*const providers[])(DB_playItem_t *) = {&download_lyrics_from_lyricwiki};
+static experimental::optional<ustring>(*const providers[])(DB_playItem_t *) = {&get_lyrics_from_script, &download_lyrics_from_lyricwiki};
 
 inline string cached_filename(string artist, string title) {
 	replace(artist.begin(), artist.end(), '/', '_');
@@ -85,77 +86,146 @@ bool is_playing(DB_playItem_t *track) {
 }
 
 static
-experimental::optional<ustring> get_lyrics_from_id3v2(DB_playItem_t *track) {
-	const char *path;
-	{
-		pl_lock_guard guard;
-		path = deadbeef->pl_find_meta(track, ":URI");
-	}
-
-	DB_FILE *fp = deadbeef->fopen(path);
-	if (!fp) {
-		cerr << "lyricbar: tried to get lyrics from tag but couldn't fopen the file" << endl;
-		return {};
-	}
-
-	id3v2_tag id3;
-	int res = deadbeef->junk_id3v2_read_full(track, &id3.tag, fp);
-
-	deadbeef->fclose(fp);
-
-	if (res != 0) {
-		debug_out << "junk_id3v2_read_full returned " << res << endl;
-		return {};
-	}
-
-	for (auto frame = id3.tag.frames; frame; frame = frame->next) {
-		if (!strcmp(frame->id, "USLT") && frame->size > 5)
-			return ustring{reinterpret_cast<const char*>(frame->data + 5)};
-	}
-
-	return {};
-}
-
-static
 experimental::optional<ustring> get_lyrics_from_metadata(DB_playItem_t *track) {
 	pl_lock_guard guard;
-	const char *lyrics = deadbeef->pl_find_meta(track, "lyrics");
+	const char *lyrics = deadbeef->pl_find_meta(track, "lyrics")
+	                  ?: deadbeef->pl_find_meta(track, "unsynced lyrics");
 	if (lyrics)
 		return ustring{lyrics};
 	else return {};
 }
 
-experimental::optional<ustring> get_lyrics_from_tag(DB_playItem_t *track) {
-	if (auto ans = get_lyrics_from_metadata(track))
-		return ans;
-	else return get_lyrics_from_id3v2(track);
+experimental::optional<ustring> get_lyrics_from_script(DB_playItem_t *track) {
+	std::string buf = std::string(4096, '\0');
+	deadbeef->conf_get_str("lyricbar.customcmd", nullptr, &buf[0], buf.size());
+	if (!buf[0]) {
+		return {};
+	}
+	auto tf_code = deadbeef->tf_compile(buf.data());
+	if (!tf_code) {
+		std::cerr << "lyricbar: Invalid script command!\n";
+		return {};
+	}
+	ddb_tf_context_t ctx{};
+	ctx._size = sizeof(ctx);
+	ctx.it = track;
+
+	int command_len = deadbeef->tf_eval(&ctx, tf_code, &buf[0], buf.size());
+	deadbeef->tf_free(tf_code);
+	if (command_len < 0) {
+		std::cerr << "lyricbar: Invalid script command!\n";
+		return {};
+	}
+
+	buf.resize(command_len);
+
+	std::string script_output;
+	int exit_status = 0;
+	spawn_command_line_sync(buf, &script_output, nullptr, &exit_status);
+
+	if (script_output.empty() || exit_status != 0) {
+		return {};
+	}
+
+	auto res = ustring{std::move(script_output)};
+	if (!res.validate()) {
+		cerr << "lyricbar: script output is not a valid UTF8 string!\n";
+		return {};
+	}
+	return {std::move(res)};
+}
+
+void char_asciify(gunichar c, ustring &out) {
+	switch (c) {
+		case U'’':
+		case U'´':
+		case U'`':
+			c = '\'';
+			break;
+		case U'“':
+		case U'”':
+			c = '"';
+			break;
+		case U'–':
+		case U'—':
+			c = '-';
+			break;
+		case U'…':
+			out.append(3, '.');
+			return;
+		}
+	out.push_back(c);
+}
+
+void asciify(ustring &s) {
+	s.normalize(NormalizeMode::NORMALIZE_ALL_COMPOSE);
+	ustring ans;
+	ans.reserve(s.bytes());
+	for (auto c : s) {
+		char_asciify(c, ans);
+	}
+	s = std::move(ans);
+}
+
+experimental::optional<std::string> fetch_file(const std::string &uri) {
+	auto gfile = Gio::File::create_for_uri(uri);
+	auto stream = gfile->read();
+	std::array<char, 4096> buf;
+	std::string res;
+	constexpr size_t MAX_FILE_SIZE = size_t{1} << 20U; // 1MB outta be enough
+	while (true) {
+		auto nbytes = stream->read(buf.data(), buf.size());
+		if (nbytes > 0) {
+			if (res.size() + nbytes > MAX_FILE_SIZE) {
+				cerr << "lyricbar: file '" << uri << "' too large!\n";
+				return {};
+			}
+			res.append(buf.data(), nbytes);
+		} else if (nbytes == 0) {
+			return {res};
+		} else {
+			return {};
+		}
+	}
 }
 
 experimental::optional<ustring> download_lyrics_from_lyricwiki(DB_playItem_t *track) {
-	const char *artist;
-	const char *title;
+	ustring artist;
+	ustring title;
 	{
 		pl_lock_guard guard;
-		artist = deadbeef->pl_find_meta(track, "artist");
-		title  = deadbeef->pl_find_meta(track, "title");
+		const char *artist_raw, *title_raw;
+		artist_raw = deadbeef->pl_find_meta(track, "artist");
+		title_raw  = deadbeef->pl_find_meta(track, "title");
+		if (!artist_raw || !title_raw) {
+			return {};
+		}
+		artist = artist_raw;
+		title = title_raw;
 	}
-
+	asciify(artist);
+	asciify(title);
 	ustring api_url = ustring::compose(LW_FMT, uri_escape_string(artist, {}, false)
 	                                         , uri_escape_string(title, {}, false));
 
 	string url;
+	auto doc = fetch_file(api_url);
+	if (!doc) {
+		return {};
+	}
 	try {
-		xmlpp::TextReader reader{api_url};
+		xmlpp::TextReader reader{(const unsigned char *)doc->data(), doc->size()};
 
 		while (reader.read()) {
 			if (reader.get_node_type() == xmlpp::TextReader::NodeType::Element
 			        && reader.get_name() == "lyrics") {
 				reader.read();
-				// got the cropped version of lyrics — display it before the complete one is got
 				if (reader.get_value() == "Not found")
 					return {};
-				else
+				else {
+					// got the cropped version of lyrics — display it before the complete one is got
 					set_lyrics(track, reader.get_value());
+				}
 			} else if (reader.get_name() == "url") {
 				reader.read();
 				url = reader.get_value();
@@ -170,9 +240,13 @@ experimental::optional<ustring> download_lyrics_from_lyricwiki(DB_playItem_t *tr
 	url.replace(0, strlen("http://lyrics.wikia.com/"),
 	            "http://lyrics.wikia.com/api.php?action=query&prop=revisions&rvprop=content&format=xml&titles=");
 
+	doc = fetch_file(url);
+	if (!doc) {
+		return {};
+	}
 	string raw_lyrics;
 	try {
-		xmlpp::TextReader reader{url};
+		xmlpp::TextReader reader{(const unsigned char *)doc->data(), doc->size()};
 		while (reader.read()) {
 			if (reader.get_name() == "rev") {
 				reader.read();
@@ -198,15 +272,11 @@ experimental::optional<ustring> download_lyrics_from_lyricwiki(DB_playItem_t *tr
 
 void update_lyrics(void *tr) {
 	DB_playItem_t *track = static_cast<DB_playItem_t*>(tr);
-	if (track == last)
-		return;
 
-	if (auto lyrics = get_lyrics_from_tag(track)) {
+	if (auto lyrics = get_lyrics_from_metadata(track)) {
 		set_lyrics(track, *lyrics);
 		return;
 	}
-
-	set_lyrics(track, _("Loading..."));
 
 	const char *artist;
 	const char *title;
@@ -221,6 +291,8 @@ void update_lyrics(void *tr) {
 			set_lyrics(track, *lyrics);
 			return;
 		}
+
+		set_lyrics(track, _("Loading..."));
 
 		// No lyrics in the tag or cache; try to get some and cache if succeeded
 		for (auto f : providers) {

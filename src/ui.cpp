@@ -27,19 +27,15 @@ static vector<RefPtr<TextTag>> tagsTitle, tagsArtist;
 
 void set_lyrics(DB_playItem_t *track, ustring lyrics) {
 	signal_idle().connect_once([track, lyrics = move(lyrics)] {
-		const char *artist, *title;
+		ustring artist, title;
 		{
 			pl_lock_guard guard;
 
 			if (!is_playing(track))
 				return;
-			artist = deadbeef->pl_find_meta(track, "artist");
-			title  = deadbeef->pl_find_meta(track, "title");
+			artist = deadbeef->pl_find_meta(track, "artist") ?: _("Unknown Artist");
+			title  = deadbeef->pl_find_meta(track, "title") ?: _("Unknown Title");
 		}
-		if (!artist)
-			artist = _("Unknown Artist");
-		if (!title)
-			title = _("Unknown Title");
 		refBuffer->erase(refBuffer->begin(), refBuffer->end());
 		refBuffer->insert_with_tags(refBuffer->begin(), title, tagsTitle);
 		refBuffer->insert_with_tags(refBuffer->end(), ustring{"\n"} + artist + "\n\n", tagsArtist);
@@ -134,7 +130,7 @@ int message_handler(struct ddb_gtkui_widget_s*, uint32_t id, uintptr_t ctx, uint
 		case DB_EV_SONGSTARTED:
 			debug_out << "SONG STARTED\n";
 		case DB_EV_TRACKINFOCHANGED:
-			if (!event->track || deadbeef->pl_get_item_duration(event->track) <= 0)
+			if (!event->track || event->track == last || deadbeef->pl_get_item_duration(event->track) <= 0)
 				return 0;
 			auto tid = deadbeef->thread_start(update_lyrics, event->track);
 			deadbeef->thread_detach(tid);

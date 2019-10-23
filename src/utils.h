@@ -33,6 +33,7 @@ bool is_playing(DB_playItem_t *track);
 void update_lyrics(void *tr);
 
 std::experimental::optional<Glib::ustring> download_lyrics_from_lyricwiki(DB_playItem_t *track);
+std::experimental::optional<Glib::ustring> get_lyrics_from_script(DB_playItem_t *track);
 
 int mkpath(const std::string &name, mode_t mode);
 
