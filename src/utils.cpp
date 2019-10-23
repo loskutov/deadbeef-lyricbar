@@ -103,8 +103,8 @@ experimental::optional<ustring> get_lyrics_from_script(DB_playItem_t *track) {
 	}
 	auto tf_code = deadbeef->tf_compile(buf.data());
 	if (!tf_code) {
-	    std::cerr << "lyricbar: Invalid script command!\n";
-	    return {};
+		std::cerr << "lyricbar: Invalid script command!\n";
+		return {};
 	}
 	ddb_tf_context_t ctx{};
 	ctx._size = sizeof(ctx);
@@ -167,6 +167,28 @@ void asciify(ustring &s) {
 	s = std::move(ans);
 }
 
+experimental::optional<std::string> fetch_file(const std::string &uri) {
+	auto gfile = Gio::File::create_for_uri(uri);
+	auto stream = gfile->read();
+	std::array<char, 4096> buf;
+	std::string res;
+	constexpr size_t MAX_FILE_SIZE = size_t{1} << 20U; // 1MB outta be enough
+	while (true) {
+		auto nbytes = stream->read(buf.data(), buf.size());
+		if (nbytes > 0) {
+			if (res.size() + nbytes > MAX_FILE_SIZE) {
+				cerr << "lyricbar: file '" << uri << "' too large!\n";
+				return {};
+			}
+			res.append(buf.data(), nbytes);
+		} else if (nbytes == 0) {
+			return {res};
+		} else {
+			return {};
+		}
+	}
+}
+
 experimental::optional<ustring> download_lyrics_from_lyricwiki(DB_playItem_t *track) {
 	ustring artist;
 	ustring title;
@@ -176,7 +198,7 @@ experimental::optional<ustring> download_lyrics_from_lyricwiki(DB_playItem_t *tr
 		artist_raw = deadbeef->pl_find_meta(track, "artist");
 		title_raw  = deadbeef->pl_find_meta(track, "title");
 		if (!artist_raw || !title_raw) {
-		    return {};
+			return {};
 		}
 		artist = artist_raw;
 		title = title_raw;
@@ -187,8 +209,12 @@ experimental::optional<ustring> download_lyrics_from_lyricwiki(DB_playItem_t *tr
 	                                         , uri_escape_string(title, {}, false));
 
 	string url;
+	auto doc = fetch_file(api_url);
+	if (!doc) {
+		return {};
+	}
 	try {
-		xmlpp::TextReader reader{api_url};
+		xmlpp::TextReader reader{(const unsigned char *)doc->data(), doc->size()};
 
 		while (reader.read()) {
 			if (reader.get_node_type() == xmlpp::TextReader::NodeType::Element
@@ -214,9 +240,13 @@ experimental::optional<ustring> download_lyrics_from_lyricwiki(DB_playItem_t *tr
 	url.replace(0, strlen("http://lyrics.wikia.com/"),
 	            "http://lyrics.wikia.com/api.php?action=query&prop=revisions&rvprop=content&format=xml&titles=");
 
+	doc = fetch_file(url);
+	if (!doc) {
+		return {};
+	}
 	string raw_lyrics;
 	try {
-		xmlpp::TextReader reader{url};
+		xmlpp::TextReader reader{(const unsigned char *)doc->data(), doc->size()};
 		while (reader.read()) {
 			if (reader.get_name() == "rev") {
 				reader.read();
