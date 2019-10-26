@@ -2,6 +2,7 @@ CFLAGS+=-std=c99 -Wall -O2 -D_GNU_SOURCE -fPIC -fvisibility=hidden -flto
 CXXFLAGS+=-std=c++14 -Wall -O2 -fPIC -fvisibility=hidden -flto
 LIBFLAGS=`pkg-config --cflags libxml++-3.0 $(GTKMM) $(GTK)`
 LIBS=`pkg-config --libs libxml++-3.0 $(GTKMM) $(GTK)`
+LDFLAGS+=-flto
 
 prefix ?= $(out)
 prefix ?= /usr
@@ -18,7 +19,7 @@ gtk2: lyricbar
 
 lyricbar: ui.o utils.o main.o
 	$(if $(LYRICBAR),, $(error You should only access this target via "gtk3" or "gtk2"))
-	$(CXX) -flto -shared main.o ui.o utils.o -o $(LYRICBAR) $(LIBS)
+	$(CXX) -shared $(LDFLAGS) main.o ui.o utils.o -o $(LYRICBAR) $(LIBS)
 
 ui.o: src/ui.cpp
 	$(CXX) src/ui.cpp -c $(LIBFLAGS) $(CXXFLAGS)
