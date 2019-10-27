@@ -24,3 +24,5 @@ mkdir -p ~/.local/lib/deadbeef && cp *.so ~/.local/lib/deadbeef
 
 ## Usage
 Activate Design Mode (View → Design mode) and add Lyricbar somewhere. Disable Design Mode back and enjoy the music :)
+
+In addition, if you're not satisfied with LyricWiki, external lyrics providers can be used (see plugin preferences, the script launch command can use the whole [DeaDBeeF title formatting](https://github.com/DeaDBeeF-Player/deadbeef/wiki/Title-formatting-2.0) power, it's supposed to output the lyrics to stdout).
