@@ -3,6 +3,7 @@
 #include <sys/stat.h>
 
 #include <algorithm>
+#include <cassert>
 #include <cctype> // ::isspace
 #include <cstring>
 #include <fstream>
@@ -11,13 +12,13 @@
 #include <sstream>
 #include <stdexcept>
 
+#include <giomm.h>
 #include <glibmm/fileutils.h>
 #include <glibmm/uriutils.h>
-#include <giomm.h>
 
 #include "debug.h"
-#include "ui.h"
 #include "gettext.h"
+#include "ui.h"
 
 using namespace std;
 using namespace Glib;
@@ -172,9 +173,8 @@ void asciify(ustring &s) {
 	s = std::move(ans);
 }
 
-experimental::optional<std::string> fetch_file(const std::string &uri) {
-	auto gfile = Gio::File::create_for_uri(uri);
-	auto stream = gfile->read();
+std::string fetch_file(Gio::File &gfile) {
+	auto stream = gfile.read();
 	std::array<char, 4096> buf;
 	std::string res;
 	constexpr size_t MAX_FILE_SIZE = size_t{1} << 20U; // 1MB outta be enough
@@ -182,15 +182,23 @@ experimental::optional<std::string> fetch_file(const std::string &uri) {
 		auto nbytes = stream->read(buf.data(), buf.size());
 		if (nbytes > 0) {
 			if (res.size() + nbytes > MAX_FILE_SIZE) {
-				cerr << "lyricbar: file '" << uri << "' too large!\n";
-				return {};
+				cerr << "lyricbar: file '" << gfile.get_uri() << "' too large!\n";
+				throw std::runtime_error("file too large");
 			}
 			res.append(buf.data(), nbytes);
-		} else if (nbytes == 0) {
-			return {res};
 		} else {
-			return {};
+			assert(nbytes == 0);
+			return res;
 		}
+	}
+}
+
+experimental::optional<std::string> fetch_file(const std::string &uri) {
+	auto gfile = Gio::File::create_for_uri(uri);
+	try {
+		return {fetch_file(*gfile.get())};
+	} catch (...) {
+		return {};
 	}
 }
 
