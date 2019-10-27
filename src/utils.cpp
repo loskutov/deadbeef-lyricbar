@@ -121,7 +121,12 @@ experimental::optional<ustring> get_lyrics_from_script(DB_playItem_t *track) {
 
 	std::string script_output;
 	int exit_status = 0;
-	spawn_command_line_sync(buf, &script_output, nullptr, &exit_status);
+	try {
+		spawn_command_line_sync(buf, &script_output, nullptr, &exit_status);
+	} catch (const Glib::Error &e) {
+		std::cerr << "lyricbar: " << e.what() << "\n";
+		return {};
+	}
 
 	if (script_output.empty() || exit_status != 0) {
 		return {};
