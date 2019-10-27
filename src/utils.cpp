@@ -173,25 +173,31 @@ void asciify(ustring &s) {
 }
 
 experimental::optional<std::string> fetch_file(const std::string &uri) {
-	auto gfile = Gio::File::create_for_uri(uri);
-	auto stream = gfile->read();
-	std::array<char, 4096> buf;
-	std::string res;
-	constexpr size_t MAX_FILE_SIZE = size_t{1} << 20U; // 1MB outta be enough
-	while (true) {
-		auto nbytes = stream->read(buf.data(), buf.size());
-		if (nbytes > 0) {
-			if (res.size() + nbytes > MAX_FILE_SIZE) {
-				cerr << "lyricbar: file '" << uri << "' too large!\n";
-				return {};
-			}
-			res.append(buf.data(), nbytes);
-		} else if (nbytes == 0) {
-			return {res};
-		} else {
-			return {};
-		}
-	}
+    try{
+        auto gfile = Gio::File::create_for_uri(uri);
+        auto stream = gfile->read();
+        std::array<char, 4096> buf;
+        std::string res;
+        constexpr size_t MAX_FILE_SIZE = size_t{1} << 20U; // 1MB outta be enough
+        while (true) {
+            auto nbytes = stream->read(buf.data(), buf.size());
+            if (nbytes > 0) {
+                if (res.size() + nbytes > MAX_FILE_SIZE) {
+                    cerr << "lyricbar: file '" << uri << "' too large!\n";
+                    return {};
+                }
+                res.append(buf.data(), nbytes);
+            } else if (nbytes == 0) {
+                return {res};
+            } else {
+                return {};
+            }
+        }
+    }
+    catch(std::exception& e){
+        std::cerr<<"Failed fetching file from "<<uri<<"\n";
+        return {};
+    }
 }
 
 experimental::optional<ustring> download_lyrics_from_lyricwiki(DB_playItem_t *track) {
