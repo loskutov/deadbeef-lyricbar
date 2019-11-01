@@ -110,6 +110,9 @@ GtkWidget *construct_lyricbar() {
 	lyricView->set_can_focus(false);
 	lyricView->set_justification(get_justification());
 	lyricView->set_wrap_mode(WRAP_WORD_CHAR);
+        if (get_justification() == JUSTIFY_LEFT) {
+           lyricView->set_left_margin(20);
+        }
 	lyricView->show();
 
 	lyricbar = new ScrolledWindow();
