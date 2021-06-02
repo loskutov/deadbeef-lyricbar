@@ -90,7 +90,8 @@ static
 experimental::optional<ustring> get_lyrics_from_metadata(DB_playItem_t *track) {
 	pl_lock_guard guard;
 	const char *lyrics = deadbeef->pl_find_meta(track, "lyrics")
-	                  ?: deadbeef->pl_find_meta(track, "unsynced lyrics");
+	                  ?: deadbeef->pl_find_meta(track, "unsynced lyrics")
+	                  ?: deadbeef->pl_find_meta(track, "UNSYNCEDLYRICS");
 	if (lyrics)
 		return ustring{lyrics};
 	else return {};
