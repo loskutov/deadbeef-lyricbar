@@ -84,7 +84,6 @@ DB_plugin_t *ddb_lyricbar_gtk2_load(DB_functions_t *ddb) {
 DB_plugin_t *ddb_lyricbar_gtk3_load(DB_functions_t *ddb) {
 #endif
 	deadbeef = ddb;
-	setlocale(LC_ALL, "");
 	bindtextdomain("deadbeef-lyricbar", "/usr/share/locale");
 	textdomain("deadbeef-lyricbar");
 	remove_action.title = _(remove_action.title);
