@@ -8,8 +8,6 @@
 #include <cstring>
 #include <fstream>
 #include <iostream>
-#include <regex>
-#include <sstream>
 #include <stdexcept>
 
 #include <giomm.h>
@@ -25,12 +23,11 @@ using namespace Glib;
 
 const DB_playItem_t *last;
 
-static const ustring LW_FMT = "http://lyrics.wikia.com/api.php?action=lyrics&fmt=xml&artist=%1&song=%2";
 static const char *home_cache = getenv("XDG_CACHE_HOME");
 static const string lyrics_dir = (home_cache ? string(home_cache) : string(getenv("HOME")) + "/.cache")
                                + "/deadbeef/lyrics/";
 
-static experimental::optional<ustring>(*const providers[])(DB_playItem_t *) = {&get_lyrics_from_script, &download_lyrics_from_lyricwiki};
+static experimental::optional<ustring>(*const providers[])(DB_playItem_t *) = {&get_lyrics_from_script};
 
 inline string cached_filename(string artist, string title) {
 	replace(artist.begin(), artist.end(), '/', '_');
@@ -140,150 +137,6 @@ experimental::optional<ustring> get_lyrics_from_script(DB_playItem_t *track) {
 		return {};
 	}
 	return {std::move(res)};
-}
-
-void char_asciify(gunichar c, ustring &out) {
-	switch (c) {
-		case U'’':
-		case U'´':
-		case U'`':
-			c = '\'';
-			break;
-		case U'“':
-		case U'”':
-			c = '"';
-			break;
-		case U'–':
-		case U'—':
-			c = '-';
-			break;
-		case U'…':
-			out.append(3, '.');
-			return;
-		}
-	out.push_back(c);
-}
-
-void asciify(ustring &s) {
-	s.normalize(NormalizeMode::NORMALIZE_ALL_COMPOSE);
-	ustring ans;
-	ans.reserve(s.bytes());
-	for (auto c : s) {
-		char_asciify(c, ans);
-	}
-	s = std::move(ans);
-}
-
-std::string fetch_file(Gio::File &gfile) {
-	auto stream = gfile.read();
-	std::array<char, 4096> buf;
-	std::string res;
-	constexpr size_t MAX_FILE_SIZE = size_t{1} << 20U; // 1MB outta be enough
-	while (true) {
-		auto nbytes = stream->read(buf.data(), buf.size());
-		if (nbytes > 0) {
-			if (res.size() + nbytes > MAX_FILE_SIZE) {
-				cerr << "lyricbar: file '" << gfile.get_uri() << "' too large!\n";
-				throw std::runtime_error("file too large");
-			}
-			res.append(buf.data(), nbytes);
-		} else {
-			assert(nbytes == 0);
-			return res;
-		}
-	}
-}
-
-experimental::optional<std::string> fetch_file(const std::string &uri) {
-	auto gfile = Gio::File::create_for_uri(uri);
-	try {
-		return {fetch_file(*gfile.get())};
-	} catch (...) {
-		return {};
-	}
-}
-
-experimental::optional<ustring> download_lyrics_from_lyricwiki(DB_playItem_t *track) {
-	ustring artist;
-	ustring title;
-	{
-		pl_lock_guard guard;
-		const char *artist_raw, *title_raw;
-		artist_raw = deadbeef->pl_find_meta(track, "artist");
-		title_raw  = deadbeef->pl_find_meta(track, "title");
-		if (!artist_raw || !title_raw) {
-			return {};
-		}
-		artist = artist_raw;
-		title = title_raw;
-	}
-	asciify(artist);
-	asciify(title);
-	ustring api_url = ustring::compose(LW_FMT, uri_escape_string(artist, {}, false)
-	                                         , uri_escape_string(title, {}, false));
-
-	string url;
-	auto doc = fetch_file(api_url);
-	if (!doc) {
-		return {};
-	}
-	try {
-		xmlpp::TextReader reader{reinterpret_cast<const unsigned char *>(doc->data()),
-		                         static_cast<xmlpp::TextReader::size_type>(doc->size())};
-
-		while (reader.read()) {
-			if (reader.get_node_type() == xmlpp::TextReader::NodeType::Element
-			        && reader.get_name() == "lyrics") {
-				reader.read();
-				if (reader.get_value() == "Not found")
-					return {};
-				else {
-					// got the cropped version of lyrics — display it before the complete one is got
-					set_lyrics(track, reader.get_value());
-				}
-			} else if (reader.get_name() == "url") {
-				reader.read();
-				url = reader.get_value();
-				break;
-			}
-		}
-	} catch (const exception &e) {
-		cerr << "lyricbar: couldn't parse XML (URI is '" << api_url << "'), what(): " << e.what() << endl;
-		return {};
-	}
-
-	url.replace(0, strlen("http://lyrics.wikia.com/"),
-	            "http://lyrics.wikia.com/api.php?action=query&prop=revisions&rvprop=content&format=xml&titles=");
-
-	doc = fetch_file(url);
-	if (!doc) {
-		return {};
-	}
-	string raw_lyrics;
-	try {
-		xmlpp::TextReader reader{reinterpret_cast<const unsigned char *>(doc->data()),
-		                         static_cast<xmlpp::TextReader::size_type>(doc->size())};
-		while (reader.read()) {
-			if (reader.get_name() == "rev") {
-				reader.read();
-				raw_lyrics = reader.get_value();
-				break;
-			}
-		}
-	} catch (const exception &e) {
-		cerr << "lyricbar: couldn't parse XML, what(): " << e.what() << endl;
-		return {};
-	}
-
-	// although counter-intuitive, this seems to be the right way to do the parsing
-	const static regex r{R"(<lyrics>\s*([^]*?)\s*</lyrics>)"};
-	smatch match;
-	regex_search(raw_lyrics, match, r);
-	if (match.size() < 2) {
-		return {};
-	}
-
-	return ustring{match[1]};
 }
 
 void update_lyrics(void *tr) {

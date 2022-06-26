@@ -10,8 +10,6 @@
 #include <stdbool.h>
 #else
 #include <glibmm/main.h>
-#include <libxml++/libxml++.h>
-#include <libxml++/parsers/textreader.h>
 #include <experimental/optional>
 
 #include "main.h"
