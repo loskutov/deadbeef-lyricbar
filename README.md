@@ -1,12 +1,12 @@
 [![Build Status](https://travis-ci.org/loskutov/deadbeef-lyricbar.svg)](https://travis-ci.org/loskutov/deadbeef-lyricbar)
 # DeaDBeeF Lyricbar Plugin
-A simple plugin for DeaDBeeF audio player that fetches and shows the song’s lyrics using LyricWiki.
+A simple plugin for DeaDBeeF audio player that fetches and shows the song’s lyrics using track metadata and user-provided lyric fetchers.
 
 ![Screenshot](https://user-images.githubusercontent.com/1202012/51805459-90148b80-227e-11e9-9c0d-1df1d33fe1cd.png)
 
 
 Inspired by [Infobar Plugin](https://bitbucket.org/dsimbiriatin/deadbeef-infobar/). If you need more functionality,
-check [my fork of it](https://bitbucket.org/IgnatLoskutov/deadbeef-infobar-ng), containing a few bug-fixes and minor improvements.
+check [my fork of it](https://github.com/loskutov/deadbeef-infobar-ng), containing a few bug-fixes and minor improvements.
 
 ## Dependencies
 To use this plugin, you need to have [gtkmm](http://www.gtkmm.org/) installed.
@@ -26,4 +26,5 @@ mkdir -p ~/.local/lib/deadbeef && cp *.so ~/.local/lib/deadbeef
 ## Usage
 Activate Design Mode (View → Design mode) and add Lyricbar somewhere. Disable Design Mode back and enjoy the music :)
 
-In addition, if you're not satisfied with LyricWiki, external lyrics providers can be used (see plugin preferences, the script launch command can use the whole [DeaDBeeF title formatting](https://github.com/DeaDBeeF-Player/deadbeef/wiki/Title-formatting-2.0) power, it's supposed to output the lyrics to stdout).
+In addition, if your tracks don't contain enough metadata, external lyrics providers can be used (see plugin preferences, the script launch command can use the whole [DeaDBeeF title formatting](https://github.com/DeaDBeeF-Player/deadbeef/wiki/Title-formatting-2.0) power, it's supposed to output the lyrics to stdout).
+However, I recommend tools like [beets](https://github.com/beetbox/beets) to have the lyrics inside the tracks' metadata.
